@@ -1,7 +1,7 @@
-
 from pathlib import Path
 from flask import Flask, jsonify, send_from_directory
 from db import get_db_connection
+from registry import fetch_registry
 
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
@@ -60,29 +60,14 @@ def db_test():
         }), 500
 
 
-# Retrieve procurement records
+# Retrieve the procurement registry (READ-ONLY)
 @app.route("/api/procurements")
 def get_procurements():
+    connection = None
+
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-
-        cursor.execute("""
-            SELECT
-                procurement_id,
-                reference_no,
-                title,
-                abc,
-                status,
-                data_source
-            FROM procurements
-            ORDER BY procurement_id DESC
-        """)
-
-        procurements = cursor.fetchall()
-
-        cursor.close()
-        connection.close()
+        procurements = fetch_registry(connection)
 
         return jsonify({
             "status": "success",
@@ -90,12 +75,22 @@ def get_procurements():
             "procurements": procurements
         })
 
-    except Exception as e:
+    except Exception:
+        # Full error details go to the Flask terminal only.
+        app.logger.exception(
+            "Failed to load the procurement registry"
+        )
+
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": "Could not load procurement records."
         }), 500
+
+    finally:
+        if connection is not None:
+            connection.close()
 
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
+
