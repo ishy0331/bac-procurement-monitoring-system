@@ -1466,13 +1466,7 @@
         this._modalConfirm = null;
         this._reindexing = false;
 
-        this.registry = [
-          { id: 'SR-2026-001', title: 'Asphalt Overlaying Operations - Brgy. Don Jose', unit: 'City Engineering Office', mode: 'Public Bidding', category: 'Infrastructure', abc: 4850000, timeline: 'Aug - Dec 2026', status: 'Awarded', bidder: 'Astra Builders Corp.', bidAmount: 4812350, bids: 3, philgeps: '12599841', deadline: '2026-08-20', resolution: 'BAC Res. No. 044', basis: 'Lowest Calculated Responsive Bid (LCRB)', noa: 'NOA-SR-2026-012', awardDate: '2026-10-02', noticeType: 'ITB' },
-          { id: 'SR-2026-002', title: 'Desktop Workstation Fleet Modernization', unit: 'Information Technology Section', mode: 'Public Bidding', category: 'Goods', abc: 2100000, timeline: 'Nov 2026', status: 'Under Evaluation', bidder: 'TechNova Systems Inc.', bidAmount: 2045000, bids: 2, philgeps: '12640327', deadline: '2026-10-08', noticeType: 'ITB' },
-          { id: 'SR-2026-003', title: 'Office Supplies and Materials - 2nd Semester', unit: 'General Services Office', mode: 'Small Value Procurement (Sec. 53.9)', category: 'Goods', abc: 480000, timeline: 'Nov 2026', status: 'Posted (ITB/RFQ)', bidder: '', philgeps: '12671105', deadline: '2026-10-26', noticeType: 'RFQ' },
-          { id: 'SR-2026-004', title: 'Medical Supplies for City Health Office', unit: 'City Health Office', mode: 'Public Bidding', category: 'Goods', abc: 1250000, timeline: 'Dec 2026', status: 'Pre-Procurement', bidder: '' },
-          { id: 'SR-2026-005', title: 'Drainage Rehabilitation - Brgy. Tagapo', unit: 'City Engineering Office', mode: 'Public Bidding', category: 'Infrastructure', abc: 6300000, timeline: 'Nov 2026 - Mar 2027', status: 'Recommended for Award', bidder: 'XYZ Construction Inc.', bidAmount: 6212000, bids: 3, philgeps: '12633390', deadline: '2026-09-28', resolution: 'BAC Res. No. 051', basis: 'Lowest Calculated Responsive Bid (LCRB)', noticeType: 'ITB' }
-        ];
+        this.registry = [];
 
         this.accounts = [
           { name: 'Juan Dela Cruz', email: 'jdelacruz@example.gov.ph', role: 'BAC Secretariat', status: 'Active' },
@@ -1499,6 +1493,34 @@
         this.renderGraphStats();
         this.initKnowledgeGraph();
         this.updateSchemaChecks();
+        this.loadRegistry();
+      }
+
+       async loadRegistry() {
+        try {
+          const response = await fetch('/api/procurements');
+
+          if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (result.status !== 'success') {
+            throw new Error(result.message || 'Failed to load procurement records.');
+          }
+
+          this.registry = result.procurements || [];
+
+          this.renderRegistry();
+          this.renderPublic();
+          this.renderSupplierLookup();
+
+          console.log('Procurement records loaded:', this.registry.length);
+
+        } catch (error) {
+          console.error('Failed to load procurement records:', error);
+        }
       }
 
       /* ===== Events ===== */
