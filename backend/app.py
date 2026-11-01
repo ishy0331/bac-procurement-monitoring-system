@@ -8,6 +8,7 @@ from db import get_db_connection
 from registry import fetch_registry
 from public_registry import fetch_public_registry   # published records only
 from auth import init_auth, require_role           # Phase 2: authentication
+from procurement_api import procurement_bp         # Phase 3: procurement records
 
 STAFF_ROLES = ("secretariat", "member", "admin")
 
@@ -40,6 +41,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=bool(getattr(config, "SESSION_COOKIE_SECURE", False)),
 )
 init_auth(app)   # /api/login, /api/change-password, /api/logout, /api/me + session checks
+app.register_blueprint(procurement_bp)   # Phase 3: /api/procurements/<reference> (read-only in Step 1)
 
 
 # Serve the existing staff frontend
