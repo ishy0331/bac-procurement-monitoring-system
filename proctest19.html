@@ -45,6 +45,22 @@
     .thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
     .thin-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
     .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    /* ---------- Prototype labels (features not yet connected to the database) ---------- */
+    .demo-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; line-height: 1.2;
+      text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; padding: 2px 8px; border-radius: 9999px;
+      background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+    .ref-pill { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+    .demo-note { font-size: 11px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 10px; line-height: 1.45; }
+
+    /* ---------- Warning notifications (larger, easier to notice) ----------
+       Scoped under #toast-stack so these rules outrank the Tailwind utility
+       classes on the same element (Tailwind's CDN styles load after this block). */
+    #toast-stack .toast-warn { font-size: 14px; line-height: 1.45; font-weight: 600; color: #78350f; background: #fffbeb;
+      border-color: #fcd34d; border-left-width: 6px; border-left-color: #f59e0b; padding: 14px 18px; gap: 12px;
+      box-shadow: 0 10px 25px -5px rgba(120, 53, 15, .25), 0 8px 10px -6px rgba(120, 53, 15, .15); }
+    #toast-stack .toast-warn .toast-icon { font-size: 22px; line-height: 1; margin-top: 0; color: #d97706; }
+    @media (min-width: 640px) { #toast-stack .toast-warn { width: 28rem; } }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased selection:bg-[#A60E0D] selection:text-white">
@@ -62,7 +78,7 @@
       <form id="login-form" onsubmit="event.preventDefault(); window.workspaceManager.handleLogin(event);" class="space-y-4">
         <div id="login-error" class="hidden items-start gap-2 bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-semibold">
           <i class="fa-solid fa-circle-exclamation text-[#A60E0D] text-sm shrink-0 mt-0.5"></i>
-          <span>Invalid username or password. Demo credentials: <strong>user</strong> / <strong>password</strong></span>
+          <span>Invalid username, password or role, or the account is temporarily locked.</span>
         </div>
 
         <div>
@@ -78,7 +94,7 @@
         <div>
           <label for="username-field" class="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1.5">Username</label>
           <div class="relative">
-            <input type="text" id="username-field" required autocomplete="username" placeholder="user" class="w-full bg-gray-50 border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#A60E0D] focus:bg-white transition" />
+            <input type="text" id="username-field" required autocomplete="username" placeholder="Enter your username" class="w-full bg-gray-50 border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#A60E0D] focus:bg-white transition" />
             <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
           </div>
         </div>
@@ -95,7 +111,7 @@
           <span>Sign In to Staff Workspace</span>
           <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i>
         </button>
-        <p class="text-[11px] text-center text-gray-400">Demo credentials: <span class="font-mono text-gray-600">user</span> / <span class="font-mono text-gray-600">password</span></p>
+        <p class="text-[11px] text-center text-gray-400">Use the account issued by the System Administrator.</p>
       </form>
 
       <div class="flex items-center gap-3 my-5">
@@ -180,6 +196,11 @@
             </span>
           </div>
 
+          <div class="demo-note flex items-start gap-2">
+            <i class="fa-solid fa-flask mt-0.5 shrink-0"></i>
+            <span><strong>Prototype figures.</strong> The KPI cards, stage counts and health indicators on this page are placeholder values; they are not yet computed from the database (planned for Phase 4). The knowledge graph snapshot uses public PhilGEPS award abstracts from <em>other</em> government agencies as reference data, not Santa Rosa City records.</span>
+          </div>
+
           <!-- KPI Cards -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div class="bg-white border border-gray-200 p-4 rounded-xl shadow-sm min-w-0">
@@ -211,8 +232,8 @@
                 <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-800 leading-tight min-w-0 break-words">Cross-Reference Reviews</span>
                 <i class="fa-solid fa-code-compare text-amber-600 shrink-0"></i>
               </div>
-              <div class="text-2xl sm:text-3xl font-extrabold mt-2 text-amber-700">2</div>
-              <div class="text-[11px] text-amber-800 mt-1 font-medium leading-snug">Entity matches queued for BAC review</div>
+              <div class="text-2xl sm:text-3xl font-extrabold mt-2 text-amber-700">&mdash;</div>
+              <div class="text-[11px] text-amber-800 mt-1 font-medium leading-snug">Cross-reference rules are planned; none run yet</div>
             </div>
           </div>
 
@@ -273,7 +294,7 @@
                 <div id="kg-snapshot" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
                 <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-4 mb-2">Patterns surfaced by graph queries</h4>
                 <ul id="kg-patterns" class="space-y-2"></ul>
-                <p class="text-[10px] text-gray-400 mt-3">Built from PhilGEPS Award Notice Abstracts loaded into the graph. Patterns describe relationships for review, not findings.</p>
+                <p class="text-[10px] text-gray-400 mt-3"><span class="demo-pill ref-pill mr-1">Reference data</span>Built from public PhilGEPS award notice abstracts of other government agencies. These are not Santa Rosa City procurement records and are kept separate from the procurement registry. Patterns describe relationships for review, not findings.</p>
               </div>
             </div>
 
@@ -326,10 +347,14 @@
 
               <!-- Activity log -->
               <div class="bg-white border border-gray-200 p-5 rounded-xl shadow-sm">
-                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-3">
-                  <i class="fa-solid fa-shield-halved mr-1.5 text-[#A60E0D]"></i>Compliance Activity Log
-                </h4>
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700">
+                    <i class="fa-solid fa-shield-halved mr-1.5 text-[#A60E0D]"></i>Compliance Activity Log
+                  </h4>
+                  <span class="demo-pill">This tab only</span>
+                </div>
                 <div id="activity-log" class="space-y-3.5 border-l-2 border-gray-200 pl-3.5 ml-1.5"></div>
+                <p class="text-[10px] text-gray-400 mt-3">This list is kept in this browser tab and clears on reload. Sign-ins, sign-outs, failed logins, lockouts and password changes are saved separately in the database activity log.</p>
               </div>
             </div>
           </div>
@@ -345,9 +370,12 @@
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Secretariat: encoding form -->
             <div data-show-for="secretariat" class="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-sm min-w-0">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-4">
-                <i class="fa-solid fa-plus-circle mr-1.5 text-[#A60E0D]"></i>Encode Purchase Request
-              </h3>
+              <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700">
+                  <i class="fa-solid fa-plus-circle mr-1.5 text-[#A60E0D]"></i>Encode Purchase Request
+                </h3>
+                <span class="demo-pill">Demo &bull; not saved to database</span>
+              </div>
               <form id="encode-form" onsubmit="event.preventDefault(); window.workspaceManager.appendNewLedgerItem();" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
                   <label for="form-title" class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Project Title <span class="text-[#A60E0D]">*</span></label>
@@ -399,6 +427,7 @@
                   </button>
                   <span class="text-[11px] text-gray-400">The supplier is recorded later, when bids are logged.</span>
                 </div>
+                <p class="md:col-span-2 demo-note">Saving to the database is not connected yet. Committing adds a <strong>DEMO-</strong> row to this browser tab only; it disappears on reload. The registry rows marked SAMPLE- are loaded from the database. Registry actions (Post ITB/RFQ, Log Bids, Log Resolution, Issue NOA) are also demo-only for now.</p>
               </form>
             </div>
 
@@ -496,6 +525,7 @@
                 <i class="fa-solid fa-circle-nodes text-[#A60E0D]"></i> Supplier Network Mappings Explorer
               </h2>
               <p class="text-xs text-gray-500 max-w-3xl">Semantic property graph built from PhilGEPS Award Notice Abstracts. Agencies, suppliers, officials, categories and locations are resolved into single nodes, so separate procurements connect wherever they share an entity.</p>
+              <p class="text-[11px] text-blue-900 max-w-3xl mt-1.5"><span class="demo-pill ref-pill mr-1">Reference data &bull; other agencies</span>Every record in this graph is a public award abstract from another government agency. None of them is a Santa Rosa City procurement, and they are not mixed into the City's procurement registry.</p>
             </div>
             <div id="kg-legend" class="flex flex-wrap gap-1.5 text-[10px] max-w-xl"></div>
           </div>
@@ -576,7 +606,7 @@
             <div id="inspector" class="lg:col-span-3 bg-white border border-gray-200 rounded-xl p-5 shadow-sm min-w-0">
               <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-2 mb-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">Graph Node Attributes</h3>
-                <span class="text-[10px] font-mono text-gray-400">Source: PhilGEPS Award Notice Abstracts</span>
+                <span class="text-[10px] font-mono text-gray-400">Source: PhilGEPS award abstracts (other agencies)</span>
               </div>
               <div id="inspector-body"></div>
             </div>
@@ -671,7 +701,7 @@
               <div class="max-w-xl">
                 <label for="pub-supplier-search" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Search Supplier or Contractor</label>
                 <div class="flex gap-2">
-                  <input id="pub-supplier-search" type="text" placeholder="Type a company name (e.g. Astra Builders)..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#A60E0D]" />
+                  <input id="pub-supplier-search" type="text" placeholder="Type a company name (e.g. Alpha Demo Builders)..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#A60E0D]" />
                   <button type="button" onclick="window.workspaceManager.renderSupplierLookup()" class="bg-[#A60E0D] hover:bg-[#8a0b0a] text-[#F2E503] px-5 py-2 rounded-lg text-xs font-bold uppercase transition shrink-0 cursor-pointer">Search</button>
                 </div>
                 <p class="text-[11px] text-gray-400 mt-2">Shows contracts awarded by the City and published on PhilGEPS. Internal BAC reviews that are still pending are not published here.</p>
@@ -693,9 +723,9 @@
               <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-start gap-3">
                 <div class="min-w-0">
                   <h4 class="font-bold text-xs text-gray-800">Procurement Monitoring Report (PMR)</h4>
-                  <p class="text-[11px] text-gray-500 mt-0.5">Current registry in PMR column order (CSV).</p>
+                  <p class="text-[11px] text-gray-500 mt-0.5">Published projects in PMR column order (CSV). Items still under BAC deliberation are not included.</p>
                 </div>
-                <button type="button" aria-label="Download PMR" onclick="window.workspaceManager.exportPMR()" class="bg-[#A60E0D] hover:bg-[#8a0b0a] text-[#F2E503] w-9 h-9 rounded-lg transition text-xs cursor-pointer shrink-0"><i class="fa-solid fa-file-arrow-down"></i></button>
+                <button type="button" aria-label="Download PMR" onclick="window.workspaceManager.exportPMR('public')" class="bg-[#A60E0D] hover:bg-[#8a0b0a] text-[#F2E503] w-9 h-9 rounded-lg transition text-xs cursor-pointer shrink-0"><i class="fa-solid fa-file-arrow-down"></i></button>
               </div>
               <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-start gap-3">
                 <div class="min-w-0">
@@ -727,7 +757,7 @@
               <div>
                 <div class="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 mb-3"><i class="fa-solid fa-table-cells"></i></div>
                 <h3 class="font-bold text-sm text-gray-800">Supplier Contract Frequency</h3>
-                <p class="text-xs text-gray-500 mt-1">Bids and awards per supplier with total awarded value and cross-reference notes for internal review.</p>
+                <p class="text-xs text-gray-500 mt-1">Bids and awards per supplier in the City registry, with total awarded value. Cross-reference notes stay blank until the rules are implemented.</p>
               </div>
               <button type="button" onclick="window.workspaceManager.exportSupplierMatrix()" class="bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg cursor-pointer transition">Export Matrix (CSV)</button>
             </div>
@@ -735,7 +765,7 @@
               <div>
                 <div class="w-9 h-9 rounded-lg bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 mb-3"><i class="fa-solid fa-circle-nodes"></i></div>
                 <h3 class="font-bold text-sm text-gray-800">Knowledge Graph Extract</h3>
-                <p class="text-xs text-gray-500 mt-1">Every node and relationship built from the PhilGEPS abstracts, with provenance and source notice numbers.</p>
+                <p class="text-xs text-gray-500 mt-1">Every node and relationship built from the PhilGEPS reference abstracts (other agencies, not City records), with provenance and source notice numbers.</p>
               </div>
               <button type="button" onclick="window.workspaceManager.exportGraph()" class="bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg cursor-pointer transition">Export Graph (CSV)</button>
             </div>
@@ -743,7 +773,7 @@
               <div>
                 <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mb-3"><i class="fa-solid fa-clock-rotate-left"></i></div>
                 <h3 class="font-bold text-sm text-gray-800">BAC Activity Log</h3>
-                <p class="text-xs text-gray-500 mt-1">User actions, stage changes and system events recorded during this session.</p>
+                <p class="text-xs text-gray-500 mt-1">Actions listed in this browser tab (demo log). The saved audit trail is the database activity log.</p>
               </div>
               <button type="button" onclick="window.workspaceManager.exportActivity()" class="bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg cursor-pointer transition">Export Log (CSV)</button>
             </div>
@@ -757,7 +787,7 @@
               <h2 class="text-xl sm:text-2xl font-bold text-amber-900 flex items-center gap-2">
                 <i class="fa-solid fa-user-gear text-amber-600"></i> System Administration
               </h2>
-              <p class="text-xs text-gray-500">System configuration, user account provisioning and Neo4j graph maintenance.</p>
+              <p class="text-xs text-gray-500">System configuration, user account provisioning and Neo4j graph maintenance. These three panels are prototypes and are not yet connected to the backend.</p>
             </div>
             <span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold px-3 py-1 rounded-full uppercase whitespace-nowrap">Super Admin Access</span>
           </div>
@@ -765,7 +795,10 @@
           <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <!-- Config -->
             <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 min-w-0">
-              <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-sliders text-amber-600"></i> System Configuration</h3>
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-sliders text-amber-600"></i> System Configuration</h3>
+                <span class="demo-pill">Demo &bull; not saved</span>
+              </div>
               <div class="space-y-3 text-xs">
                 <div>
                   <label for="cfg-fy" class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Active fiscal year</label>
@@ -779,17 +812,22 @@
                   <input id="cfg-sync" type="checkbox" checked class="mt-0.5 w-4 h-4 accent-[#A60E0D]" />
                   <span class="text-gray-600">Require a PhilGEPS reference number before a notice can be marked as posted</span>
                 </label>
-                <label class="flex items-start gap-2 cursor-pointer">
-                  <input id="cfg-xref" type="checkbox" checked class="mt-0.5 w-4 h-4 accent-[#A60E0D]" />
-                  <span class="text-gray-600">Run entity cross-reference rules when bids are logged</span>
+                <label class="flex items-start gap-2 cursor-not-allowed opacity-60">
+                  <input id="cfg-xref" type="checkbox" disabled class="mt-0.5 w-4 h-4 accent-[#A60E0D]" />
+                  <span class="text-gray-600">Run entity cross-reference rules when bids are logged <em>(planned; not implemented yet)</em></span>
                 </label>
               </div>
+              <p class="demo-note">These settings apply to this browser tab only. Saving them to the database (system_settings) is planned for Phase 4.</p>
               <button type="button" onclick="window.workspaceManager.saveConfig()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-2 rounded-lg transition cursor-pointer">Save Configuration</button>
             </div>
 
             <!-- Accounts -->
             <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 min-w-0">
-              <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-gear text-[#A60E0D]"></i> User Account Provisioning</h3>
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-users-gear text-[#A60E0D]"></i> User Account Provisioning</h3>
+                <span class="demo-pill">Demo list &bull; not the database</span>
+              </div>
+              <p class="demo-note">The names below are sample entries kept in this browser tab. Real sign-in accounts are stored in the database <span class="font-mono">users</span> table. Creating accounts, Disable/Enable and password resets will be connected in Phase 4; the form below does not create an account.</p>
               <div class="overflow-x-auto thin-scroll border border-gray-200 rounded-lg">
                 <table class="w-full min-w-[380px] text-left text-[11px] text-gray-600">
                   <thead class="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500">
@@ -810,7 +848,10 @@
 
             <!-- Graph maintenance -->
             <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 min-w-0">
-              <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-database text-blue-700"></i> Knowledge Graph Maintenance</h3>
+              <div class="flex flex-wrap justify-between items-center gap-2">
+                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-database text-blue-700"></i> Knowledge Graph Maintenance</h3>
+                <span class="demo-pill">Simulation &bull; Neo4j not connected</span>
+              </div>
               <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
                   <div id="stat-nodes" class="text-lg font-extrabold text-gray-900"></div>
@@ -821,6 +862,7 @@
                   <div class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Relationships</div>
                 </div>
               </div>
+              <div class="text-[10px] text-gray-400 -mt-2">Counts of the in-page reference graph (PhilGEPS abstracts, other agencies).</div>
               <div class="text-[11px] text-gray-500">Last re-index: <span id="stat-last" class="font-mono text-gray-700"></span></div>
               <div id="reindex-wrap" class="hidden">
                 <div class="h-2 bg-gray-100 rounded-full overflow-hidden"><div id="reindex-bar" class="h-full bg-blue-700 rounded-full transition-all" style="width:0%"></div></div>
@@ -830,7 +872,7 @@
                 <button type="button" onclick="window.workspaceManager.clearCache()" class="bg-gray-100 border border-gray-300 text-gray-700 font-bold text-xs py-2 rounded-lg hover:bg-gray-200 transition cursor-pointer">Clear Query Cache</button>
                 <button type="button" onclick="window.workspaceManager.reindexGraph()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2 rounded-lg transition cursor-pointer">Re-Index Graph</button>
               </div>
-              <p class="text-[11px] text-gray-500 leading-relaxed">Rebuilds node indexes and re-syncs relationships from the relational (MySQL) records.</p>
+              <p class="text-[11px] text-gray-500 leading-relaxed">Planned for Phase 7: rebuild the Neo4j indexes and re-sync relationships from the MariaDB records. Until then both buttons are simulations and change nothing.</p>
             </div>
           </div>
         </section>
@@ -1445,7 +1487,7 @@
     const ROLE_HELP = {
       'BAC Secretariat': 'Encodes PRs, posts ITB/RFQ notices, logs bids, issues NOAs and prepares the PMR.',
       'BAC Member': 'Reviews bid evaluation packages, inspects graph relationships and logs BAC Resolutions.',
-      'Super Admin': 'Configures the system, provisions user accounts and maintains the Neo4j graph index.'
+      'Super Admin': 'Oversees user accounts and system settings. Account management is being connected (Phase 4); Neo4j graph maintenance is planned (Phase 7) and not yet operational.'
     };
     const STATUS_STYLE = {
       'Pre-Procurement': 'bg-gray-100 border-gray-300 text-gray-700',
@@ -1455,18 +1497,36 @@
       'Awarded': 'bg-emerald-50 border-emerald-200 text-emerald-800',
       'Failed Bidding': 'bg-red-50 border-red-200 text-red-700'
     };
-    const XREF_SUPPLIERS = ['astra builders', 'xyz construction'];
+    // Prototype features that are NOT yet saved to the database are labelled with these notes.
+    const DEMO_SUFFIX = ' (Demo: not saved to the database.)';
+    // Public copy of a record - the same allowlist as backend/public_registry.py.
+    // Used only for unsaved demo rows; real public data comes from /api/public/procurements.
+    // "id" is the procurement reference number. Awarded rows add awardee / contractAmount
+    // (on the server these come from the award notice: supplier and awarded_amount).
+    const PUBLIC_NOTICE_FIELDS = ['id', 'title', 'unit', 'mode', 'category', 'abc', 'status', 'noticeType', 'philgeps', 'deadline'];
+    function toPublicView(r) {
+      if (r.status !== 'Posted (ITB/RFQ)' && !(r.status === 'Awarded' && r.noa)) return null;
+      const out = {};
+      PUBLIC_NOTICE_FIELDS.forEach(f => { out[f] = r[f]; });
+      if (r.status === 'Awarded') {
+        // Demo rows only: the demo NOA dialog awards the logged bid amount.
+        Object.assign(out, { awardee: r.bidder, contractAmount: r.bidAmount, noa: r.noa, awardDate: r.awardDate });
+      }
+      return out;
+    }
+    const DEMO_MODAL_NOTE ='<p class="demo-note">Demo action: this change stays in this browser tab only and is not saved to the database. It disappears when the page reloads.</p>';
 
     /* ---------- Application controller ---------- */
     class ProcurementWorkspaceManager {
       constructor() {
         this.role = null;
         this.roleKey = null;
-        this.nextSeq = 6;
+        this.nextSeq = 1;                       // DEMO-001, DEMO-002 ... (browser-only rows)
         this._modalConfirm = null;
         this._reindexing = false;
 
-        this.registry = [];
+        this.registry = [];        // INTERNAL registry: loaded only for signed-in staff (/api/procurements)
+        this.publicRegistry = [];  // PUBLIC registry: published records only (/api/public/procurements)
 
         this.accounts = [
           { name: 'Juan Dela Cruz', email: 'jdelacruz@example.gov.ph', role: 'BAC Secretariat', status: 'Active' },
@@ -1476,13 +1536,13 @@
           { name: 'System Administrator', email: 'sysadmin@example.gov.ph', role: 'Super Admin', status: 'Active' }
         ];
 
+        // Browser-tab activity list (demo). The saved audit trail is the database activity_log table.
         this.activity = [
-          { time: 'Today, 2:14 PM', actor: 'Cross-Reference Rule', title: 'Entity cross-reference match logged', detail: 'Astra Builders Corp. and XYZ Construction Inc. list a common director on their SEC GIS. Queued for BAC review; no finding made.', tone: 'warn' },
-          { time: 'Yesterday, 9:00 AM', actor: 'BAC Secretariat', title: 'Award trail linked', detail: 'SR-2026-001 connected to BAC Resolution No. 044, the Notice of Award and the contract record.', tone: 'info' },
-          { time: 'Oct 08, 2026', actor: 'PMR Validator', title: 'PMR draft validated', detail: 'Semi-annual Procurement Monitoring Report fields checked against the GPPB template.', tone: 'ok' }
+          { time: nowStamp(), actor: 'System', title: 'Tab activity list started', detail: 'Actions in this browser tab are listed here and clear on reload. Sign-ins, sign-outs and password changes are also saved in the database activity log.', tone: 'info' }
         ];
 
-        this.graphStats = { nodes: 1284, rels: 381, lastIndex: 'Oct 16, 2026, 11:40 PM' };
+        // Counts of the in-page reference graph; Neo4j is not connected yet (Phase 7).
+        this.graphStats = { nodes: KG.nodes.length, rels: KG.edges.length, lastIndex: 'Never (Neo4j not connected yet)' };
 
         this.bindEvents();
         this.updateRoleHelp();
@@ -1493,12 +1553,37 @@
         this.renderGraphStats();
         this.initKnowledgeGraph();
         this.updateSchemaChecks();
-        this.loadRegistry();
+        this.loadPublicRegistry();      // public portal data (no login needed)
+
+        // Phase 2: visible 15-minute inactivity sign-out (the server enforces it too)
+        this.idleLimitMs = 15 * 60 * 1000;
+        this.idleWarnMs = 14 * 60 * 1000;
+        this.idleCheckMs = 15 * 1000;      // how often checkInactivity() runs; sign-out happens one check early
+        // Fix C: while the user is active, refresh the server session at most once a
+        // minute (was 5), so the server's idle clock stays within 1 minute of the page's.
+        this.sessionPingMs = 60 * 1000;
+        this._idleTimer = null;
+        this.restoreSession();
       }
 
-       async loadRegistry() {
+      // INTERNAL registry - signed-in BAC staff only (called after sign-in).
+      async loadRegistry() {
         try {
-          const response = await fetch('/api/procurements');
+          const response = await fetch('/api/procurements', { credentials: 'same-origin' });
+
+          if (response.status === 401 && this.roleKey && this.roleKey !== 'public') {
+            // Fix B: the page thinks staff are signed in, but the server session has
+            // ended - go to the login screen instead of showing an empty registry.
+            this.handleSessionExpired('Your session expired. Please sign in again.');
+            return;
+          }
+
+          if (response.status === 401 || response.status === 403) {
+            // Not signed in, session expired, or a restricted (password-change)
+            // session: the internal registry is not available.
+            console.info('Internal registry not loaded (HTTP ' + response.status + ').');
+            return;
+          }
 
           if (!response.ok) {
             throw new Error(`HTTP error: ${response.status}`);
@@ -1521,6 +1606,37 @@
         } catch (error) {
           console.error('Failed to load procurement records:', error);
         }
+      }
+
+      // PUBLIC registry - published records with public fields only (no login).
+      async loadPublicRegistry() {
+        try {
+          const response = await fetch('/api/public/procurements', { credentials: 'same-origin' });
+          if (response.status === 403) {
+            // Restricted (password-change) session: reloaded once it ends.
+            console.info('Public registry not loaded: set a new password first.');
+            return;
+          }
+          if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+          const result = await response.json();
+          if (result.status !== 'success') throw new Error(result.message || 'Failed to load public records.');
+          this.publicRegistry = result.procurements || [];
+          this.renderPublic();
+          console.log('Public procurement records loaded:', this.publicRegistry.length);
+        } catch (error) {
+          console.error('Failed to load public procurement records:', error);
+        }
+      }
+
+      // What the Public Portal shows: the server's public records, plus - for staff
+      // trying the demo actions - a public-safe copy of their unsaved demo changes.
+      publicView() {
+        const map = new Map(this.publicRegistry.map(r => [r.id, r]));
+        this.registry.filter(r => r.demo).forEach(r => {
+          const pub = toPublicView(r);
+          if (pub) map.set(r.id, Object.assign(pub, { demo: true })); else map.delete(r.id);
+        });
+        return [...map.values()];
       }
 
       /* ===== Events ===== */
@@ -1559,23 +1675,227 @@
       }
 
       /* ===== Authentication & roles ===== */
-      handleLogin() {
+      /* ===== Authentication (Phase 2: server login) ===== */
+      async postJson(url, body) {
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+          body: JSON.stringify(body || {})
+        });
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      showLoginError(message) {
+        const errorBlock = document.getElementById('login-error');
+        errorBlock.querySelector('span').textContent = message;
+        errorBlock.classList.remove('hidden');
+        errorBlock.classList.add('flex');
+      }
+
+      hideLoginError() {
+        const errorBlock = document.getElementById('login-error');
+        errorBlock.classList.add('hidden');
+        errorBlock.classList.remove('flex');
+      }
+
+      async handleLogin() {
         const username = document.getElementById('username-field').value.trim();
         const password = document.getElementById('password-field').value;
-        const errorBlock = document.getElementById('login-error');
+        const role = document.getElementById('role').value;
+        const submitBtn = document.querySelector('#login-form button[type="submit"]');
+        if (submitBtn.disabled) return;                 // ignore double clicks
 
-        if (username === 'user' && password === 'password') {
-          errorBlock.classList.add('hidden');
-          errorBlock.classList.remove('flex');
-          this.role = document.getElementById('role').value;
-          this.roleKey = ROLE_KEYS[this.role];
-          this.enterApp();
-          this.logActivity(this.role, 'Signed in', 'Staff session started for ' + this.role + '.', 'info');
-          this.switchPage('dashboard');
-        } else {
-          errorBlock.classList.remove('hidden');
-          errorBlock.classList.add('flex');
+        this.hideLoginError();
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+        try {
+          const sentAt = Date.now();                    // before the request: the server starts the session later than this
+          const result = await this.postJson('/api/login', { username, password, role });
+          document.getElementById('password-field').value = '';
+          if (result.ok && result.data.status === 'password_change_required') {
+            this.promptPasswordChange(result.data.user);
+          } else if (result.ok && result.data.status === 'success') {
+            this.completeSignIn(result.data.user, false, sentAt);
+          } else {
+            this.showLoginError(result.data.message || 'Invalid username, password or role, or the account is temporarily locked.');
+          }
+        } catch (error) {
+          console.error('Login request failed:', error);
+          this.showLoginError('Could not reach the server. Please try again.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
         }
+      }
+
+      // serverSeenAt: when the request that started/refreshed the server session was SENT.
+      completeSignIn(user, restored, serverSeenAt) {
+        this.hideLoginError();
+        this.role = user.roleLabel;                     // role comes from the server
+        this.roleKey = user.role;
+        this.enterApp();
+        if (!restored) {
+          this.logActivity(this.role, 'Signed in', 'Staff session started for ' + user.full_name + ' (' + this.role + ').', 'info');
+        }
+        this.switchPage('dashboard');
+        this.startInactivityTimer(serverSeenAt);
+        this.loadRegistry();                            // fresh copy from the database
+        // Fix A: the public registry may have been blocked (403) while a pending
+        // session was active; load it now so the Public Portal page is not empty.
+        if (!this.publicRegistry.length) this.loadPublicRegistry();
+      }
+
+      promptPasswordChange(user) {
+        const field = 'mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]';
+        const label = 'text-[11px] font-bold uppercase tracking-wider text-gray-600';
+        this.openModal({
+          title: 'Set a New Password',
+          subtitle: (user.full_name || user.username) + ' • ' + user.roleLabel + ' • first sign-in',
+          confirmText: 'Save New Password',
+          body: `
+            <p class="text-[11px] text-gray-600">Your account uses a temporary password. Set your own password to activate the account.</p>
+            <label class="block"><span class="${label}">Current (temporary) password</span>
+              <input id="pw-current" type="password" autocomplete="current-password" class="${field}" /></label>
+            <label class="block"><span class="${label}">New password</span>
+              <input id="pw-new" type="password" autocomplete="new-password" class="${field}" /></label>
+            <label class="block"><span class="${label}">Confirm new password</span>
+              <input id="pw-confirm" type="password" autocomplete="new-password" class="${field}" /></label>
+            <p class="text-[11px] text-gray-500">At least 10 characters, with letters and digits. It must differ from the temporary password and must not contain your username.</p>`,
+          onConfirm: () => { this.submitPasswordChange(); return false; }
+        });
+        this._modalOnClose = () => this.cancelPasswordChange();
+      }
+
+      async submitPasswordChange() {
+        if (this._pwBusy) return;
+        const current_password = document.getElementById('pw-current').value;
+        const new_password = document.getElementById('pw-new').value;
+        const confirm_password = document.getElementById('pw-confirm').value;
+        if (!current_password || !new_password || !confirm_password) { this.modalError('Fill in all three password fields.'); return; }
+        if (new_password !== confirm_password) { this.modalError('The new password and its confirmation do not match.'); return; }
+
+        const confirmBtn = document.getElementById('modal-confirm');
+        this._pwBusy = true;
+        confirmBtn.disabled = true;
+        try {
+          const sentAt = Date.now();                    // before the request: the server starts the new session later than this
+          const result = await this.postJson('/api/change-password', { current_password, new_password, confirm_password });
+          if (result.ok && result.data.status === 'success') {
+            this._modalOnClose = null;                  // success: do not sign out on close
+            this.closeModal();
+            this.showToast('Password saved. Your account is now active.', 'ok');
+            this.completeSignIn(result.data.user, false, sentAt);
+          } else if (result.status === 401) {
+            this._modalOnClose = null;
+            this.closeModal();
+            this.showLoginError(result.data.message || 'Please sign in again.');
+          } else {
+            const details = result.data.errors ? ' ' + Object.values(result.data.errors).join(' ') : '';
+            this.modalError(((result.data.message || 'The password was not changed.') + details).trim());
+          }
+        } catch (error) {
+          console.error('Password change failed:', error);
+          this.modalError('Could not reach the server. The password was not changed.');
+        } finally {
+          this._pwBusy = false;
+          confirmBtn.disabled = false;
+        }
+      }
+
+      async cancelPasswordChange() {
+        // Closing the dialog without saving ends the restricted session.
+        this.showLoginError('Password not changed. Sign in again with your temporary password to activate your account.');
+        try { await this.postJson('/api/logout', {}); }
+        catch (error) { console.warn('Logout request failed:', error); }
+        this.loadPublicRegistry();                      // public registry is readable again
+      }
+
+      async restoreSession() {
+        try {
+          const sentAt = Date.now();                    // before the request: /api/me refreshes the session later than this
+          const response = await fetch('/api/me', { credentials: 'same-origin' });
+          if (!response.ok) return;                     // server problem: stay on the login screen
+          const data = await response.json();
+          if (this.roleKey === 'public') return;        // user already chose the public portal
+          if (data.authenticated && data.user) {
+            this.completeSignIn(data.user, true, sentAt);
+          } else if (data.password_change_required && data.user) {
+            this.promptPasswordChange(data.user);
+          }
+        } catch (error) {
+          console.warn('Session check failed:', error);
+        }
+      }
+
+      // serverSeenAt: send time of the request that started/refreshed the server session.
+      // The page's idle clock starts there, never later than the server's own clock.
+      startInactivityTimer(serverSeenAt) {
+        this.stopInactivityTimer();
+        this._lastActivity = Date.now();
+        this._lastPing = Date.now();
+        // All callers pass a send time. If one ever does not, assume the session was
+        // refreshed one ping interval ago (earlier = safe: the page signs out sooner).
+        this._serverSeenAt = Number.isFinite(serverSeenAt) ? serverSeenAt : Date.now() - this.sessionPingMs;
+        this._idleWarned = false;
+        if (!this._activityHandler) {
+          this._activityHandler = () => this.noteActivity();
+          ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
+            document.addEventListener(evt, this._activityHandler, { passive: true }));
+        }
+        this._idleTimer = setInterval(() => this.checkInactivity(), this.idleCheckMs);
+      }
+
+      stopInactivityTimer() {
+        if (this._idleTimer) clearInterval(this._idleTimer);
+        this._idleTimer = null;
+      }
+
+      noteActivity() {
+        if (!this._idleTimer) return;
+        this._lastActivity = Date.now();
+        if (Date.now() - this._lastPing > this.sessionPingMs) {   // keep the server session alive
+          this._lastPing = Date.now();
+          this.pingSession();
+        }
+      }
+
+      async pingSession() {
+        const sentAt = Date.now();                      // before the request: the server refreshes later than this
+        try {
+          const response = await fetch('/api/me', { credentials: 'same-origin' });
+          if (!response.ok) return;                     // 503 = database check failed, not an expiry (server clock NOT refreshed)
+          const data = await response.json();
+          if (!data.authenticated) {
+            this.handleSessionExpired('Your session expired. Please sign in again.');
+          } else {
+            this._serverSeenAt = Math.max(this._serverSeenAt || 0, sentAt);   // server's idle clock restarted
+            this._idleWarned = false;                   // a new warning is due 14 min from here
+          }
+        } catch (error) {
+          console.warn('Session ping failed:', error);  // network error: server clock NOT refreshed
+        }
+      }
+
+      checkInactivity() {
+        // Measured from the last request the server is known to have accepted, so the
+        // page warns and signs out no later than the server's 15-minute idle expiry.
+        const idle = Date.now() - this._serverSeenAt;
+        if (idle >= this.idleLimitMs - this.idleCheckMs) {           // sign out one check period early
+          this.postJson('/api/logout', {}).catch(() => {});
+          this.handleSessionExpired('You were signed out after 15 minutes of inactivity.');
+        } else if (idle >= this.idleWarnMs && !this._idleWarned) {
+          this._idleWarned = true;
+          this.showToast('You will be signed out in about 1 minute due to inactivity.', 'warn');
+        }
+      }
+
+      handleSessionExpired(message) {
+        if (!this.roleKey || this.roleKey === 'public') return;
+        this.stopInactivityTimer();
+        this.resetToLoginScreen();
+        this.showLoginError(message || 'Your session expired. Please sign in again.');
       }
 
       enterPublicMode() {
@@ -1583,6 +1903,7 @@
         this.roleKey = 'public';
         this.enterApp();
         this.switchPage('public');
+        if (!this.publicRegistry.length) this.loadPublicRegistry();
       }
 
       enterApp() {
@@ -1625,10 +1946,23 @@
         this.renderRegistry();
       }
 
-      handleLogout() {
-        if (this.roleKey && this.roleKey !== 'public') this.logActivity(this.role, 'Signed out', 'Staff session ended.', 'info');
+      async handleLogout() {
+        const wasStaff = this.roleKey && this.roleKey !== 'public';
+        if (wasStaff) this.logActivity(this.role, 'Signed out', 'Staff session ended.', 'info');
+        this.stopInactivityTimer();
+        if (wasStaff) {
+          try { await this.postJson('/api/logout', {}); }
+          catch (error) { console.warn('Logout request failed:', error); }
+        }
+        this.resetToLoginScreen();
+      }
+
+      resetToLoginScreen() {
         this.role = null;
         this.roleKey = null;
+        this.registry = [];                             // internal data does not stay in the page after sign-out
+        this.renderRegistry();
+        this.renderPublic();
         this.closeModal();
         this.closeSidebar();
         document.getElementById('main-application').classList.add('hidden');
@@ -1709,7 +2043,7 @@
         const inferred = KG.edges.length - recorded;
         const merged = KG.nodes.filter(n => n.records.length > 1).length;
         document.getElementById('kg-ingest').innerHTML = [
-          ['fa-file-lines', PHILGEPS_ABSTRACTS.length + ' award abstracts loaded'],
+          ['fa-file-lines', PHILGEPS_ABSTRACTS.length + ' award abstracts from other agencies (reference)'],
           ['fa-circle-nodes', KG.nodes.length + ' nodes'],
           ['fa-arrow-right-arrow-left', recorded + ' recorded relationships'],
           ['fa-wand-magic-sparkles', inferred + ' inferred links'],
@@ -2403,19 +2737,19 @@
           return;
         }
         const item = {
-          id: 'SR-2026-' + pad(this.nextSeq++, 3), title, unit, mode, category, abc, timeline, status, bidder: '',
-          noticeType: mode === 'Public Bidding' ? 'ITB' : 'RFQ', fresh: true
+          id: 'DEMO-' + pad(this.nextSeq++, 3), title, unit, mode, category, abc, timeline, status, bidder: '',
+          noticeType: mode === 'Public Bidding' ? 'ITB' : 'RFQ', fresh: true, demo: true, dataSource: 'demo'
         };
         if (status === 'Posted (ITB/RFQ)') {
           item.philgeps = String(12680000 + Math.floor(Math.random() * 9999));
           item.deadline = addDays(todayISO(), 14);
         }
         this.registry.push(item);
-        this.logActivity('BAC Secretariat', 'Purchase Request encoded', item.id + ' • ' + title + ' (' + peso(abc) + ') added as ' + status + '.', 'info');
+        this.logActivity('BAC Secretariat', 'Purchase Request encoded (demo)', item.id + ' • ' + title + ' (' + peso(abc) + ') added as ' + status + ' in this browser tab only.', 'info');
         this.renderRegistry();
         this.renderPublic();
         this.updateSchemaChecks();
-        this.showToast(item.id + ' committed. Project node and PR relationships registered in the graph.', 'ok');
+        this.showToast(item.id + ' added to this browser tab only. It is not saved to the database and will disappear on reload.', 'warn');
       }
 
       actionFor(item) {
@@ -2458,7 +2792,7 @@
             ? `<div class="font-semibold text-gray-800">${esc(r.bidder)}</div><div class="text-[10px] text-gray-400 font-mono">${r.bidAmount ? esc(peso(r.bidAmount)) : ''}${r.bids ? ' • ' + r.bids + ' bid' + (r.bids > 1 ? 's' : '') : ''}</div>`
             : '<span class="text-gray-400">Not yet determined</span>';
           return `<tr class="hover:bg-gray-50 transition ${r.fresh ? 'bg-red-50/40' : ''}">
-            <td class="px-4 py-3 font-mono text-[#A60E0D] font-bold whitespace-nowrap align-top">${esc(r.id)}</td>
+            <td class="px-4 py-3 font-mono text-[#A60E0D] font-bold whitespace-nowrap align-top">${esc(r.id)}${r.demo ? '<div class="mt-1"><span class="demo-pill">Unsaved demo</span></div>' : ''}</td>
             <td class="px-4 py-3 align-top min-w-[220px]"><div class="font-medium text-gray-900 leading-snug">${esc(r.title)}</div><div class="text-[10px] text-gray-400 mt-0.5">${esc(r.category)} • ${esc(r.mode)}</div></td>
             <td class="px-4 py-3 text-gray-500 align-top">${esc(r.unit)}</td>
             <td class="px-4 py-3 font-mono text-gray-900 text-right whitespace-nowrap align-top">${esc(peso(r.abc))}</td>
@@ -2496,15 +2830,15 @@
               <input id="m-ref" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 font-mono focus:outline-none focus:border-[#A60E0D]" value="${12680000 + Math.floor(Math.random() * 9999)}" /></label>
             <label class="block"><span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Bid / Quotation Submission Deadline</span>
               <input id="m-deadline" type="date" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]" value="${addDays(todayISO(), 14)}" /></label>
-            <p class="text-[11px] text-gray-500">The notice will appear on the Public Portal under Open Bidding Opportunities.</p>`,
+            <p class="text-[11px] text-gray-500">The notice will appear on this page's Public Portal under Open Bidding Opportunities.</p>${DEMO_MODAL_NOTE}`,
           onConfirm: () => {
             const ref = document.getElementById('m-ref').value.trim();
             const dl = document.getElementById('m-deadline').value;
             if (document.getElementById('cfg-sync').checked && !ref) return this.modalError('A PhilGEPS reference number is required.');
             if (!dl) return this.modalError('Please set a submission deadline.');
-            Object.assign(it, { status: 'Posted (ITB/RFQ)', philgeps: ref, deadline: dl, noticeType: type });
-            this.logActivity('BAC Secretariat', type + ' posted', it.id + ' posted on PhilGEPS (Ref ' + ref + '), deadline ' + fmtD(dl) + '.', 'info');
-            this.afterChange(it.id + ' is now open for bidding.');
+            Object.assign(it, { status: 'Posted (ITB/RFQ)', philgeps: ref, deadline: dl, noticeType: type, demo: true });
+            this.logActivity('BAC Secretariat', type + ' posted (demo)', it.id + ' marked as posted (PhilGEPS Ref ' + ref + '), deadline ' + fmtD(dl) + '. Not saved.', 'info');
+            this.afterChange(it.id + ' is now shown as open for bidding.' + DEMO_SUFFIX, 'warn');
           }
         });
       }
@@ -2522,7 +2856,7 @@
               <input id="m-bidder" placeholder="Company name" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]" /></label>
             <label class="block"><span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Calculated bid amount (₱)</span>
               <input id="m-amount" inputmode="decimal" placeholder="0.00" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 font-mono focus:outline-none focus:border-[#A60E0D]" /></label>
-            <p class="text-[11px] text-gray-500">Bids above the ABC are not accepted. Cross-reference rules run automatically on the bidder name.</p>`,
+            <p class="text-[11px] text-gray-500">Bids above the ABC are not accepted.</p>${DEMO_MODAL_NOTE}`,
           onConfirm: () => {
             const bids = parseInt(document.getElementById('m-bids').value, 10);
             const bidder = document.getElementById('m-bidder').value.trim();
@@ -2531,15 +2865,9 @@
             if (!bidder) return this.modalError('Enter the lowest calculated bidder.');
             if (!(amt > 0)) return this.modalError('Enter a valid bid amount.');
             if (amt > it.abc) return this.modalError('The bid of ' + peso(amt) + ' exceeds the ABC of ' + peso(it.abc) + ' and cannot be accepted.');
-            Object.assign(it, { status: 'Under Evaluation', bids, bidder, bidAmount: amt });
-            this.logActivity('BAC Secretariat', 'Bids logged', it.id + ': ' + bids + ' bid(s); lowest calculated ' + bidder + ' at ' + peso(amt) + '.', 'info');
-            const xr = document.getElementById('cfg-xref').checked && XREF_SUPPLIERS.some(s => bidder.toLowerCase().includes(s));
-            if (xr) {
-              this.logActivity('Cross-Reference Rule', 'Entity cross-reference match', bidder + ' has a shared-director record with another registered bidder. Queued for BAC review.', 'warn');
-              this.afterChange('Bids logged. Note: ' + bidder + ' has a cross-reference record queued for BAC review.', 'warn');
-            } else {
-              this.afterChange('Bids logged and forwarded to the BAC for evaluation.');
-            }
+            Object.assign(it, { status: 'Under Evaluation', bids, bidder, bidAmount: amt, demo: true });
+            this.logActivity('BAC Secretariat', 'Bids logged (demo)', it.id + ': ' + bids + ' bid(s); lowest calculated ' + bidder + ' at ' + peso(amt) + '. Not saved.', 'info');
+            this.afterChange('Bids logged and shown as forwarded to the BAC.' + DEMO_SUFFIX, 'warn');
           }
         });
       }
@@ -2566,7 +2894,7 @@
                 <option value="FAIL">Declare Failure of Bidding</option>
               </select></label>
             <label class="flex items-start gap-2 cursor-pointer"><input id="m-postqual" type="checkbox" class="mt-0.5 w-4 h-4 accent-[#A60E0D]" />
-              <span class="text-gray-600">Post-qualification completed and documents verified (legal, technical, financial)</span></label>`,
+              <span class="text-gray-600">Post-qualification completed and documents verified (legal, technical, financial)</span></label>${DEMO_MODAL_NOTE}`,
           onConfirm: () => {
             const res = document.getElementById('m-res').value.trim();
             const basis = document.getElementById('m-basis').value;
@@ -2574,14 +2902,14 @@
             if (!res) return this.modalError('Enter the resolution number.');
             if (basis !== 'FAIL' && !pq) return this.modalError('Confirm post-qualification before recommending an award.');
             if (basis === 'FAIL') {
-              Object.assign(it, { status: 'Failed Bidding', resolution: res, basis: 'Failure of Bidding' });
-              this.logActivity('BAC Member', 'Failure of bidding declared', it.id + ' • ' + res + '.', 'warn');
-              this.afterChange(res + ' logged: failure of bidding declared for ' + it.id + '.', 'warn');
+              Object.assign(it, { status: 'Failed Bidding', resolution: res, basis: 'Failure of Bidding', demo: true });
+              this.logActivity('BAC Member', 'Failure of bidding declared (demo)', it.id + ' • ' + res + '. Not saved.', 'warn');
+              this.afterChange(res + ' logged: failure of bidding shown for ' + it.id + '.' + DEMO_SUFFIX, 'warn');
             } else {
               const label = basis === 'LCRB' ? 'Lowest Calculated Responsive Bid (LCRB)' : 'Single Calculated Responsive Bid (SCRB)';
-              Object.assign(it, { status: 'Recommended for Award', resolution: res, basis: label });
-              this.logActivity('BAC Member', 'BAC Resolution logged', it.id + ' • ' + res + ' recommends award to ' + it.bidder + ' (' + basis + ').', 'ok');
-              this.afterChange(res + ' logged. ' + it.id + ' forwarded to the Secretariat for the Notice of Award.');
+              Object.assign(it, { status: 'Recommended for Award', resolution: res, basis: label, demo: true });
+              this.logActivity('BAC Member', 'BAC Resolution logged (demo)', it.id + ' • ' + res + ' recommends award to ' + it.bidder + ' (' + basis + '). Not saved.', 'ok');
+              this.afterChange(res + ' logged. ' + it.id + ' shown as forwarded to the Secretariat.' + DEMO_SUFFIX, 'warn');
             }
           }
         });
@@ -2602,14 +2930,14 @@
             <label class="block"><span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Notice of Award No.</span>
               <input id="m-noa" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 font-mono focus:outline-none focus:border-[#A60E0D]" value="NOA-SR-2026-${pad(13 + Math.floor(Math.random() * 60), 3)}" /></label>
             <label class="block"><span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Award date (HoPE approval)</span>
-              <input id="m-adate" type="date" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]" value="${todayISO()}" /></label>`,
+              <input id="m-adate" type="date" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]" value="${todayISO()}" /></label>${DEMO_MODAL_NOTE}`,
           onConfirm: () => {
             const noa = document.getElementById('m-noa').value.trim();
             const ad = document.getElementById('m-adate').value;
             if (!noa || !ad) return this.modalError('Enter the NOA number and award date.');
-            Object.assign(it, { status: 'Awarded', noa, awardDate: ad });
-            this.logActivity('BAC Secretariat', 'Notice of Award issued', it.id + ' • ' + noa + ' to ' + it.bidder + ' (' + peso(it.bidAmount) + '). Award edges committed to the graph.', 'ok');
-            this.afterChange(noa + ' issued. The contract now appears on the Public Portal.');
+            Object.assign(it, { status: 'Awarded', noa, awardDate: ad, demo: true });
+            this.logActivity('BAC Secretariat', 'Notice of Award issued (demo)', it.id + ' • ' + noa + ' to ' + it.bidder + ' (' + peso(it.bidAmount) + '). Not saved; the graph is not updated.', 'ok');
+            this.afterChange(noa + ' shown as issued on this page\'s Public Portal.' + DEMO_SUFFIX, 'warn');
           }
         });
       }
@@ -2652,6 +2980,9 @@
         m.classList.add('hidden');
         m.classList.remove('flex');
         this._modalConfirm = null;
+        const onClose = this._modalOnClose;            // Phase 2: password dialog
+        this._modalOnClose = null;
+        if (onClose) onClose();
       }
 
       /* ===== Public portal ===== */
@@ -2659,30 +2990,32 @@
         const oTerm = (document.getElementById('pub-opp-search').value || '').toLowerCase().trim();
         const aTerm = (document.getElementById('pub-award-search').value || '').toLowerCase().trim();
 
-        const opps = this.registry.filter(r => r.status === 'Posted (ITB/RFQ)' && (!oTerm || [r.id, r.title, r.unit, r.philgeps].join(' ').toLowerCase().includes(oTerm)));
+        const pub = this.publicView();                  // public records only, never the internal registry
+        const opps = pub.filter(r => r.status === 'Posted (ITB/RFQ)' && (!oTerm || [r.id, r.title, r.unit, r.philgeps].join(' ').toLowerCase().includes(oTerm)));
         document.getElementById('pub-opps-body').innerHTML = opps.length ? opps.map(r => `
           <tr class="hover:bg-gray-50 transition">
-            <td class="px-4 py-3 align-top whitespace-nowrap"><div class="font-mono text-[#A60E0D] font-bold">${esc(r.id)}</div><div class="text-[10px] text-gray-400 font-mono">${esc(r.noticeType || 'ITB')} • PhilGEPS ${esc(r.philgeps || '—')}</div></td>
+            <td class="px-4 py-3 align-top whitespace-nowrap"><div class="font-mono text-[#A60E0D] font-bold">${esc(r.id)}</div><div class="text-[10px] text-gray-400 font-mono">${esc(r.noticeType || 'ITB')} • PhilGEPS ${esc(r.philgeps || '—')}</div>${r.demo ? '<div class="mt-1"><span class="demo-pill">Unsaved demo</span></div>' : ''}</td>
             <td class="px-4 py-3 align-top min-w-[220px]"><div class="font-medium text-gray-900">${esc(r.title)}</div><div class="text-[10px] text-gray-400">${esc(r.mode)}</div></td>
             <td class="px-4 py-3 align-top text-gray-500">${esc(r.unit)}</td>
             <td class="px-4 py-3 align-top font-mono text-gray-900 text-right whitespace-nowrap">${esc(peso(r.abc))}</td>
             <td class="px-4 py-3 align-top text-gray-700 whitespace-nowrap">${esc(fmtD(r.deadline))}</td>
           </tr>`).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No open opportunities match your search.</td></tr>`;
 
-        const awards = this.registry.filter(r => r.status === 'Awarded' && (!aTerm || [r.id, r.title, r.bidder, r.noa].join(' ').toLowerCase().includes(aTerm)));
+        const awards = pub.filter(r => r.status === 'Awarded' && (!aTerm || [r.id, r.title, r.awardee, r.noa].join(' ').toLowerCase().includes(aTerm)));
         document.getElementById('pub-awards-body').innerHTML = awards.length ? awards.map(r => `
           <tr class="hover:bg-gray-50 transition">
-            <td class="px-4 py-3 align-top whitespace-nowrap"><div class="font-mono text-[#A60E0D] font-bold">${esc(r.id)}</div><div class="text-[10px] text-gray-400 font-mono">${esc(r.noa || '')}</div></td>
+            <td class="px-4 py-3 align-top whitespace-nowrap"><div class="font-mono text-[#A60E0D] font-bold">${esc(r.id)}</div><div class="text-[10px] text-gray-400 font-mono">${esc(r.noa || '')}</div>${r.demo ? '<div class="mt-1"><span class="demo-pill">Unsaved demo</span></div>' : ''}</td>
             <td class="px-4 py-3 align-top min-w-[220px] font-medium text-gray-900">${esc(r.title)}</td>
-            <td class="px-4 py-3 align-top text-gray-700">${esc(r.bidder)}</td>
+            <td class="px-4 py-3 align-top text-gray-700">${esc(r.awardee)}</td>
             <td class="px-4 py-3 align-top font-mono text-gray-600 text-right whitespace-nowrap">${esc(peso(r.abc))}</td>
-            <td class="px-4 py-3 align-top font-mono text-gray-900 font-semibold text-right whitespace-nowrap">${esc(peso(r.bidAmount))}</td>
+            <td class="px-4 py-3 align-top font-mono text-gray-900 font-semibold text-right whitespace-nowrap">${esc(peso(r.contractAmount))}</td>
             <td class="px-4 py-3 align-top text-gray-600 whitespace-nowrap">${esc(fmtD(r.awardDate))}</td>
           </tr>`).join('') : `<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No awarded contracts match your search.</td></tr>`;
 
         this.renderSupplierLookup();
       }
 
+      // Staff report (internal registry) - unchanged.
       supplierAggregate() {
         const map = {};
         this.registry.filter(r => r.bidder).forEach(r => {
@@ -2694,28 +3027,40 @@
         return Object.values(map);
       }
 
+      // Public Supplier Lookup: awarded public records only (awardee + recorded contract amount).
+      publicSupplierAggregate() {
+        const map = {};
+        this.publicView().filter(r => r.status === 'Awarded' && r.awardee).forEach(r => {
+          const k = r.awardee;
+          if (!map[k]) map[k] = { name: k, awards: [], total: 0 };
+          map[k].awards.push(r);
+          map[k].total += r.contractAmount || 0;
+        });
+        return Object.values(map);
+      }
+
       renderSupplierLookup() {
         const box = document.getElementById('pub-supplier-results');
         if (!box) return;
         const term = (document.getElementById('pub-supplier-search').value || '').toLowerCase().trim();
-        const list = this.supplierAggregate().filter(s => !term || s.name.toLowerCase().includes(term));
+        const list = this.publicSupplierAggregate().filter(s => !term || s.name.toLowerCase().includes(term));
         box.innerHTML = list.length ? list.map(s => `
           <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3 min-w-0">
             <div class="flex justify-between items-start gap-3">
               <div class="min-w-0">
                 <h4 class="font-bold text-sm text-gray-900 break-words">${esc(s.name)}</h4>
-                <p class="text-[11px] text-gray-500">Participated in ${s.bids} city procurement${s.bids > 1 ? 's' : ''} (registry)</p>
+                <p class="text-[11px] text-gray-500">${s.awards.length} published City contract${s.awards.length === 1 ? '' : 's'}</p>
               </div>
               <span class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.awards.length ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'}">${s.awards.length} award${s.awards.length === 1 ? '' : 's'}</span>
             </div>
             ${s.awards.length ? `<ul class="space-y-2 text-xs">${s.awards.map(a => `
               <li class="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-start gap-3">
                 <div class="min-w-0"><p class="font-semibold text-gray-800 break-words">${esc(a.title)}</p><p class="text-[10px] text-gray-400 font-mono">${esc(a.id)} • ${esc(fmtD(a.awardDate))}</p></div>
-                <span class="font-mono text-gray-900 font-bold text-xs whitespace-nowrap">${esc(peso(a.bidAmount))}</span>
+                <span class="font-mono text-gray-900 font-bold text-xs whitespace-nowrap">${esc(peso(a.contractAmount))}</span>
               </li>`).join('')}</ul>
               <div class="text-[11px] text-gray-600">Total awarded: <span class="font-mono font-bold text-gray-900">${esc(peso(s.total))}</span></div>`
               : '<p class="text-[11px] text-gray-500">No contracts awarded by the City to date.</p>'}
-          </div>`).join('') : '<div class="text-xs text-gray-400 border border-dashed border-gray-300 rounded-lg p-6 text-center md:col-span-2">No supplier in the registry matches your search.</div>';
+          </div>`).join('') : '<div class="text-xs text-gray-400 border border-dashed border-gray-300 rounded-lg p-6 text-center md:col-span-2">No supplier with a published City contract matches your search.</div>';
       }
 
       /* ===== Activity log ===== */
@@ -2748,19 +3093,19 @@
         const role = document.getElementById('acct-role').value;
         if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { this.showToast('Enter a full name and a valid official email.', 'error'); return; }
         if (this.accounts.some(a => a.email.toLowerCase() === email.toLowerCase())) { this.showToast('An account with that email already exists.', 'warn'); return; }
-        this.accounts.push({ name, email, role, status: 'Pending activation' });
+        this.accounts.push({ name, email, role, status: 'Demo only (not saved)' });
         this.renderAccounts();
         document.getElementById('acct-name').value = '';
         document.getElementById('acct-email').value = '';
-        this.logActivity('Super Admin', 'Account provisioned', name + ' (' + role + ') created; activation link pending.', 'info');
-        this.showToast('Account created for ' + name + '. Activation is pending.', 'ok');
+        this.logActivity('Super Admin', 'Account provisioning simulated (demo)', name + ' (' + role + ') added to the demo list only. No account was created.', 'info');
+        this.showToast('Demo only: ' + name + ' was added to this list, but no account was created and nobody can sign in with it. Account provisioning is connected in Phase 4.', 'warn');
       }
       saveConfig() {
         const fy = document.getElementById('cfg-fy').value;
         const lead = parseInt(document.getElementById('cfg-alert').value, 10);
         if (!(lead >= 1 && lead <= 30)) { this.showToast('Alert lead time must be between 1 and 30 days.', 'error'); return; }
-        this.logActivity('Super Admin', 'Configuration saved', 'FY ' + fy + ', deadline alerts ' + lead + ' day(s) ahead.', 'info');
-        this.showToast('System configuration saved.', 'ok');
+        this.logActivity('Super Admin', 'Configuration applied (demo)', 'FY ' + fy + ', deadline alerts ' + lead + ' day(s) ahead, in this browser tab only.', 'info');
+        this.showToast('Applied in this browser tab only. Configuration is not saved to the database yet (planned for Phase 4).', 'warn');
       }
       renderGraphStats() {
         document.getElementById('stat-nodes').textContent = this.graphStats.nodes.toLocaleString('en-PH');
@@ -2768,8 +3113,7 @@
         document.getElementById('stat-last').textContent = this.graphStats.lastIndex;
       }
       clearCache() {
-        this.logActivity('Super Admin', 'Query cache cleared', 'Neo4j query and page caches flushed.', 'info');
-        this.showToast('Graph query cache cleared.', 'ok');
+        this.showToast('Not available yet: the Neo4j graph database is not connected (planned for Phase 7). Nothing was cleared.', 'info');
       }
       reindexGraph() {
         if (this._reindexing) return;
@@ -2777,21 +3121,18 @@
         const wrap = document.getElementById('reindex-wrap');
         const bar = document.getElementById('reindex-bar');
         const label = document.getElementById('reindex-label');
-        const steps = ['Dropping stale indexes', 'Rebuilding node indexes', 'Re-syncing relationships from MySQL', 'Validating constraints'];
+        const steps = ['Simulating: drop stale indexes', 'Simulating: rebuild node indexes', 'Simulating: re-sync relationships from MariaDB', 'Simulating: validate constraints'];
         wrap.classList.remove('hidden');
         let p = 0;
         const t = setInterval(() => {
           p = Math.min(100, p + Math.random() * 16 + 8);
           bar.style.width = p + '%';
-          label.textContent = (p < 100 ? steps[Math.min(steps.length - 1, Math.floor(p / 25))] : 'Complete') + ' • ' + Math.round(p) + '%';
+          label.textContent = (p < 100 ? steps[Math.min(steps.length - 1, Math.floor(p / 25))] : 'Simulation finished') + ' • ' + Math.round(p) + '%';
           if (p >= 100) {
             clearInterval(t);
             this._reindexing = false;
-            this.graphStats.nodes += this.registry.filter(r => r.fresh).length;
-            this.graphStats.lastIndex = nowStamp();
-            this.renderGraphStats();
-            this.logActivity('Super Admin', 'Graph re-indexed', 'Indexes rebuilt and relationships re-synced.', 'ok');
-            this.showToast('Knowledge graph re-indexed successfully.', 'ok');
+            this.logActivity('Super Admin', 'Re-index simulation run (demo)', 'No index was rebuilt: Neo4j is not connected yet.', 'info');
+            this.showToast('Simulation finished. No index was rebuilt: Neo4j is not connected yet (planned for Phase 7).', 'info');
             setTimeout(() => wrap.classList.add('hidden'), 1500);
           }
         }, 260);
@@ -2811,23 +3152,36 @@
         a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
       }
-      exportPMR() {
+      // Staff PMR (Reports page): the full internal registry - unchanged.
+      exportPMR(scope) {
+        if (scope === 'public') return this.exportPublicPMR();
         const rows = [['Procurement ID', 'Project Title', 'End-User Unit', 'Mode of Procurement', 'Category', 'ABC (PHP)', 'PhilGEPS Reference', 'Bid Submission Deadline', 'No. of Bids', 'Bidder / Awardee', 'Bid / Contract Amount (PHP)', 'BAC Resolution', 'Notice of Award', 'Award Date', 'Status']];
         this.registry.forEach(r => rows.push([r.id, r.title, r.unit, r.mode, r.category, r.abc.toFixed(2), r.philgeps || '', r.deadline || '', r.bids || '', r.bidder || '', r.bidAmount ? r.bidAmount.toFixed(2) : '', r.resolution || '', r.noa || '', r.awardDate || '', r.status]));
         this.downloadCSV('PMR_SantaRosa_FY2026.csv', rows);
         this.showToast('PMR exported (' + this.registry.length + ' projects).', 'ok');
       }
+
+      // Public PMR extract (Public Documents tab): published records, approved public fields only.
+      // No bid counts, BAC resolutions or evaluation-stage records.
+      exportPublicPMR() {
+        const source = this.publicView();
+        const rows = [['Reference No.', 'Project Title', 'End-User Unit', 'Mode of Procurement', 'Category', 'ABC (PHP)', 'Notice Type', 'PhilGEPS Reference', 'Bid Submission Deadline', 'Status', 'Awardee', 'Contract Amount (PHP)', 'Notice of Award', 'Award Date']];
+        source.forEach(r => rows.push([r.id, r.title, r.unit, r.mode, r.category, Number(r.abc || 0).toFixed(2), r.noticeType || '', r.philgeps || '', r.deadline || '', r.status,
+          r.awardee || '', r.contractAmount ? Number(r.contractAmount).toFixed(2) : '', r.noa || '', r.awardDate || '']));
+        this.downloadCSV('PMR_SantaRosa_FY2026_Public.csv', rows);
+        this.showToast('Public PMR extract exported (' + source.length + ' projects).', 'ok');
+      }
       exportSupplierMatrix() {
-        const rows = [['Supplier', 'Procurements Participated', 'Contracts Awarded', 'Total Awarded (PHP)', 'Cross-Reference Note (internal)']];
+        const rows = [['Supplier', 'Procurements Participated', 'Contracts Awarded', 'Total Awarded (PHP)', 'Cross-Reference Note (rules not implemented yet)']];
         this.supplierAggregate().forEach(s => {
-          const xr = XREF_SUPPLIERS.some(x => s.name.toLowerCase().includes(x)) ? 'Shared director with another bidder; pending BAC review' : '';
-          rows.push([s.name, s.bids, s.awards.length, s.total.toFixed(2), xr]);
+          rows.push([s.name, s.bids, s.awards.length, s.total.toFixed(2), '']);
         });
         this.downloadCSV('Supplier_Contract_Frequency.csv', rows);
         this.showToast('Supplier contract frequency matrix exported.', 'ok');
       }
       exportGraph() {
-        const rows = [['NODES'], ['Node ID', 'Type', 'Label', 'Properties', 'Source notices']];
+        const rows = [['REFERENCE DATA: public PhilGEPS award notice abstracts from other government agencies. These are NOT Santa Rosa City procurement records.'], [],
+          ['NODES'], ['Node ID', 'Type', 'Label', 'Properties', 'Source notices']];
         KG.nodes.forEach(n => rows.push([n.id, n.type, n.label,
           Object.keys(n.props).map(k => k + ': ' + (Array.isArray(n.props[k]) ? n.props[k].join(' / ') : n.props[k])).join(' | '),
           [...new Set(n.records.map(ri => PHILGEPS_ABSTRACTS[ri].noticeNo))].join(' ')]));
@@ -2836,8 +3190,8 @@
         rows.push(['Edge ID', 'From', 'Relationship', 'To', 'Provenance', 'Properties']);
         KG.edges.forEach(e => rows.push([e.id, KG.byId[e.from].label, e.type, KG.byId[e.to].label, e.provenance === 'Inferred' ? 'Inferred: ' + e.rule : 'PhilGEPS abstract',
           Object.keys(e.props || {}).map(k => k + ': ' + e.props[k]).join(' | ')]));
-        this.downloadCSV('Procurement_Knowledge_Graph.csv', rows);
-        this.showToast('Graph extract exported (' + KG.nodes.length + ' nodes, ' + KG.edges.length + ' relationships).', 'ok');
+        this.downloadCSV('PhilGEPS_Reference_Knowledge_Graph.csv', rows);
+        this.showToast('Reference graph extract exported (' + KG.nodes.length + ' nodes, ' + KG.edges.length + ' relationships; other agencies, not City records).', 'ok');
       }
       exportActivity() {
         const rows = [['Timestamp', 'Actor', 'Event', 'Detail']];
@@ -2854,11 +3208,15 @@
           error: ['border-red-300', 'fa-circle-xmark text-red-600'],
           info: ['border-gray-300', 'fa-circle-info text-gray-500']
         }[tone || 'info'];
+        const isWarn = tone === 'warn';
         const el = document.createElement('div');
-        el.className = 'pointer-events-auto w-full sm:w-96 bg-white border-l-4 ' + styles[0] + ' border border-gray-200 shadow-lg rounded-lg px-4 py-3 text-xs text-gray-700 flex items-start gap-2 transition-opacity duration-300';
-        el.innerHTML = `<i class="fa-solid ${styles[1]} mt-0.5 shrink-0"></i><span class="leading-snug">${esc(msg)}</span>`;
+        el.className = 'pointer-events-auto w-full sm:w-96 bg-white border-l-4 ' + styles[0] + ' border border-gray-200 shadow-lg rounded-lg px-4 py-3 text-xs text-gray-700 flex items-start gap-2 transition-opacity duration-300'
+          + (isWarn ? ' toast-warn' : '');                   // warnings: larger text, icon and spacing
+        if (isWarn) el.setAttribute('role', 'alert');        // screen readers announce warnings
+        el.innerHTML = `<i class="toast-icon fa-solid ${styles[1]} mt-0.5 shrink-0"></i><span class="leading-snug">${esc(msg)}</span>`;
         document.getElementById('toast-stack').appendChild(el);
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, 4200);
+        const visibleMs = isWarn ? 10000 : 4200;             // warnings stay 10 s; ok / error / info unchanged (4.2 s)
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, visibleMs);
       }
     }
 
