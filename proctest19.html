@@ -413,9 +413,8 @@
                 </div>
                 <div>
                   <label for="form-status" class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Initial Stage</label>
-                  <select id="form-status" class="enc-field mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-xs focus:bg-white focus:outline-none focus:border-[#A60E0D]">
-                    <option>Pre-Procurement</option>
-                    <option>Posted (ITB/RFQ)</option>
+                  <select id="form-status" class="enc-field mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-xs" disabled>
+                    <option value="Pre-Procurement" selected>Pre-Procurement</option>
                   </select>
                 </div>
                 <div class="md:col-span-2 flex flex-wrap items-center gap-3 pt-2">
@@ -427,7 +426,7 @@
                   </button>
                   <span class="text-[11px] text-gray-400">The supplier is recorded later, when bids are logged.</span>
                 </div>
-                <p class="md:col-span-2 demo-note">Saving to the database is not connected yet. Committing adds a <strong>DEMO-</strong> row to this browser tab only; it disappears on reload. The registry rows marked SAMPLE- are loaded from the database. Registry actions (Post ITB/RFQ, Log Bids, Log Resolution, Issue NOA) are also demo-only for now.</p>
+                <p class="md:col-span-2 demo-note">New records are saved as <strong>Pre-Procurement</strong>. After saving, use the procurement workflow to proceed with posting and other actions. Some workflow actions are still under development.</p>
               </form>
             </div>
 
@@ -2721,35 +2720,408 @@
         else this.showToast('Schema check passed: required fields and ABC format conform to the registry schema.', 'ok');
       }
 
-      appendNewLedgerItem() {
-        if (this.roleKey !== 'secretariat') { this.showToast('Only the BAC Secretariat can encode new records.', 'warn'); return; }
-        const title = document.getElementById('form-title').value.trim();
-        const abc = parseAmount(document.getElementById('form-abc').value);
-        const unit = document.getElementById('form-unit').value.trim();
-        const mode = document.getElementById('form-mode').value;
-        const category = document.getElementById('form-category').value;
-        const timeline = document.getElementById('form-timeline').value.trim();
-        const status = document.getElementById('form-status').value;
+      async appendNewLedgerItem() {
+          if (this.roleKey !== 'secretariat') {
+              this.showToast('Only the BAC Secretariat can encode new records.', 'warn');
+              return;
+          }
 
-        if (!title || !unit || !(abc > 0)) {
-          this.updateSchemaChecks();
-          this.showToast('Please complete the project title, end-user unit and a valid ABC before committing.', 'error');
+          const title = document.getElementById('form-title').value.trim();
+          const abc = parseAmount(document.getElementById('form-abc').value);
+          const unit = document.getElementById('form-unit').value.trim();
+          const mode = document.getElementById('form-mode').value;
+          const category = document.getElementById('form-category').value;
+          const timeline = document.getElementById('form-timeline').value.trim();
+
+          if (!title || !unit || !(abc > 0) || !mode || !category) {
+              this.updateSchemaChecks();
+              this.showToast('Please complete all required fields and enter a valid ABC.', 'error');
+              return;
+          }
+
+          const button = document.getElementById('commit-btn');
+          if (button.disabled) return;
+
+          button.disabled = true;
+          button.classList.add('opacity-60', 'cursor-not-allowed');
+
+          try {
+              const response = await fetch('/api/procurements', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'X-Requested-With': 'fetch'
+                  },
+                  body: JSON.stringify({
+                      title,
+                      abc,
+                      unit,
+                      mode,
+                      category,
+                      timeline
+                  })
+              });
+
+              if (response.status === 401) {
+                  this.handleSessionExpired('Your session expired. Please sign in again.');
+                  return;
+              }
+
+              const result = await response.json();
+
+              if (!response.ok || result.status !== 'success') {
+                  if (result.errors) {
+                      this.updateSchemaChecks();
+                      this.showToast(result.message || 'Please correct the highlighted fields.', 'error');
+                  } else {
+                      this.showToast(result.message || 'Could not save the procurement.', 'error');
+                  }
+                  return;
+              }
+
+              const item = result.procurement;
+
+              if (!item || !item.id) {
+                  this.showToast('The server saved the record but returned an unexpected response. Reload the registry to verify it.', 'error');
+                  return;
+              }
+
+              this.registry.push(item);
+              this.renderRegistry();
+              this.renderPublic();
+              this.renderSupplierLookup();
+              this.updateSchemaChecks();
+
+              document.getElementById('encode-form').reset();
+
+              this.showToast(result.message || item.id + ' saved successfully.', 'ok');
+
+              if (Array.isArray(result.warnings)) {
+                  result.warnings.forEach(warning => this.showToast(warning, 'warn'));
+              }
+
+          } catch (error) {
+              console.error('Failed to save procurement:', error);
+              this.showToast('A connection error occurred. Check the registry before trying again.', 'error');
+          } finally {
+              button.disabled = false;
+              button.classList.remove('opacity-60', 'cursor-not-allowed');
+          }
+      }
+      /* ===== Phase 3 Step 3: edit a procurement (GET + PUT /api/procurements/<reference>) ===== */
+      async sendJson(method, url, body) {
+        const response = await fetch(url, {
+          method,
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+          body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      async fetchProcurementDetail(id) {
+        const response = await fetch('/api/procurements/' + encodeURIComponent(id), { credentials: 'same-origin' });
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, data };
+      }
+
+      // Display rule only - PUT /api/procurements/<reference> makes the real decision.
+      canShowEdit(item) {
+        return this.roleKey === 'secretariat' && item.status === 'Pre-Procurement'
+          && item.dataSource === 'encoded' && !item.demo;
+      }
+
+      editOptions(selectId) {
+        return Array.from(document.getElementById(selectId).options).map(o => o.value);
+      }
+
+      // Every field must come from the fresh GET response, complete and matchable.
+      // Anything missing or unmatched -> the form is locked (never a silent default).
+      editLoadProblems(d) {
+        const problems = [];
+        const text = v => typeof v === 'string' && v.trim() !== '';
+        if (!d || typeof d !== 'object') return ['the record'];
+        if (!text(d.title)) problems.push('Project title');
+        if (!(typeof d.abc === 'number' && Number.isFinite(d.abc) && d.abc > 0)) problems.push('ABC');
+        if (!text(d.unit)) problems.push('End-user unit');
+        if (!text(d.mode) || !this.editOptions('form-mode').includes(d.mode)) problems.push('Mode of procurement');
+        if (!text(d.category) || !this.editOptions('form-category').includes(d.category)) problems.push('Procurement category');
+        if (!(d.timeline === null || typeof d.timeline === 'string')) problems.push('Target implementation');
+        if (typeof d.version !== 'string' || !/^[0-9a-f]{64}$/.test(d.version)) problems.push('record version');
+        return problems;
+      }
+
+      editAbcText(abc) {
+        return (typeof abc === 'number' && Number.isFinite(abc))
+          ? abc.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+      }
+
+      editFormHtml(d) {
+        const field = 'mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]';
+        const label = t => `<span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">${t}</span>`;
+        const select = (id, selectId, current) => {
+          const opts = this.editOptions(selectId);
+          const missing = !opts.includes(current);       // locked form: show an empty choice, never a default
+          return `<select id="${id}" class="e-field ${field}">`
+            + (missing ? '<option value="" selected>(could not load the current value)</option>' : '')
+            + opts.map(o => `<option value="${esc(o)}"${o === current ? ' selected' : ''}>${esc(o)}</option>`).join('')
+            + '</select>';
+        };
+        return `
+          <label class="block">${label('Project Title <span class="text-[#A60E0D]">*</span>')}
+            <input id="e-title" class="e-field ${field}" value="${esc(d.title)}" /></label>
+          <label class="block">${label('Approved Budget for the Contract (₱) <span class="text-[#A60E0D]">*</span>')}
+            <input id="e-abc" inputmode="decimal" class="e-field ${field} font-mono" value="${esc(this.editAbcText(d.abc))}" /></label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block">${label('Mode of Procurement')}${select('e-mode', 'form-mode', d.mode)}</label>
+            <label class="block">${label('Procurement Category')}${select('e-category', 'form-category', d.category)}</label>
+          </div>
+          <label class="block">${label('End-User Unit <span class="text-[#A60E0D]">*</span>')}
+            <input id="e-unit" class="e-field ${field}" value="${esc(d.unit)}" /></label>
+          <label class="block">${label('Target Implementation')}
+            <input id="e-timeline" class="e-field ${field}" value="${esc(d.timeline == null ? '' : d.timeline)}" /></label>
+          <p class="text-[11px] text-gray-500">Reference number and stage cannot be changed. Every saved change is recorded in the activity log.</p>`;
+      }
+
+      // After the form is drawn: each control must show exactly the value from GET.
+      editFieldMismatches(d) {
+        const val = id => document.getElementById(id).value;
+        const problems = [];
+        if (val('e-title') !== d.title) problems.push('Project title');
+        if (parseAmount(val('e-abc')) !== d.abc) problems.push('ABC');
+        if (val('e-unit') !== d.unit) problems.push('End-user unit');
+        if (val('e-mode') !== d.mode) problems.push('Mode of procurement');
+        if (val('e-category') !== d.category) problems.push('Procurement category');
+        if (val('e-timeline') !== (d.timeline == null ? '' : d.timeline)) problems.push('Target implementation');
+        return problems;
+      }
+
+      setEditInputsDisabled(disabled) {
+        document.querySelectorAll('#modal-body .e-field').forEach(el => { el.disabled = disabled; });
+      }
+
+      setModalBusy(busy, text) {
+        const btn = document.getElementById('modal-confirm');
+        this._modalBusy = busy;
+        btn.disabled = busy;
+        btn.classList.toggle('opacity-60', busy);
+        btn.classList.toggle('cursor-not-allowed', busy);
+        if (text) btn.textContent = text;
+      }
+
+      // Draws the form from a fresh GET response and checks it; locks it on any problem.
+      fillEditForm(d) {
+        document.getElementById('modal-body').innerHTML = this.editFormHtml(d);
+        document.getElementById('modal-subtitle').textContent = d.id + ' • ' + d.status;
+        const problems = this.editLoadProblems(d);
+        if (!problems.length) problems.push(...this.editFieldMismatches(d));
+        this._edit = { id: d.id, version: d.version, stale: false, locked: problems.length > 0 };
+        const err = document.getElementById('modal-error');
+        err.classList.add('hidden'); err.textContent = '';
+        const btn = document.getElementById('modal-confirm');
+        btn.textContent = 'Save Changes';
+        if (problems.length) {
+          this.setEditInputsDisabled(true);
+          btn.disabled = true;
+          btn.classList.add('opacity-60', 'cursor-not-allowed');
+          this.modalError('Editing is blocked: ' + problems.join(', ') + ' could not be loaded exactly. '
+            + 'Nothing will be saved. Close this window, reload the page and try again.');
+        } else {
+          btn.disabled = false;
+          btn.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+        return problems.length === 0;
+      }
+
+      // Shared handling of GET-detail failures (opening the form or loading the latest version).
+      editDetailFailed(res) {
+        if (res.status === 401 || (res.status === 403 && res.data.code === 'password_change_required')) {
+          this.endEdit();
+          this.handleSessionExpired(res.data.message || 'Your session expired. Please sign in again.');
+          return true;
+        }
+        if (!res.ok) {
+          this.endEdit();
+          this.showToast(res.data.message || 'Could not load the procurement record.', 'error');
+          if (res.status === 404) this.loadRegistry();
+          return true;
+        }
+        const d = res.data.procurement;
+        if (!d || d.canEdit !== true) {
+          this.endEdit();
+          this.showToast('This record can no longer be edited. The registry has been refreshed.', 'warn');
+          this.loadRegistry();
+          return true;
+        }
+        return false;
+      }
+
+      endEdit() {
+        this._edit = null;
+        this.setModalBusy(false);
+        const m = document.getElementById('modal');
+        if (m && !m.classList.contains('hidden')) this.closeModal();
+      }
+
+      async editProcurement(id) {
+        if (this.roleKey !== 'secretariat') {
+          this.showToast('Only the BAC Secretariat can edit procurement records.', 'warn');
           return;
         }
-        const item = {
-          id: 'DEMO-' + pad(this.nextSeq++, 3), title, unit, mode, category, abc, timeline, status, bidder: '',
-          noticeType: mode === 'Public Bidding' ? 'ITB' : 'RFQ', fresh: true, demo: true, dataSource: 'demo'
-        };
-        if (status === 'Posted (ITB/RFQ)') {
-          item.philgeps = String(12680000 + Math.floor(Math.random() * 9999));
-          item.deadline = addDays(todayISO(), 14);
+        if (this._editLoading) return;
+        this._editLoading = true;
+        try {
+          let res;
+          try {
+            res = await this.fetchProcurementDetail(id);
+          } catch (error) {
+            console.error('Failed to load procurement for editing:', error);
+            this.showToast('Could not load the record. Check your connection and try again.', 'error');
+            return;
+          }
+          if (this.editDetailFailed(res)) return;
+          this.openModal({
+            title: 'Edit Procurement',
+            subtitle: id,
+            confirmText: 'Save Changes',
+            body: '',
+            onConfirm: () => { this.editModalConfirm(); return false; }   // keep the dialog open; the request decides
+          });
+          this.fillEditForm(res.data.procurement);
+        } finally {
+          this._editLoading = false;
         }
-        this.registry.push(item);
-        this.logActivity('BAC Secretariat', 'Purchase Request encoded (demo)', item.id + ' • ' + title + ' (' + peso(abc) + ') added as ' + status + ' in this browser tab only.', 'info');
-        this.renderRegistry();
-        this.renderPublic();
-        this.updateSchemaChecks();
-        this.showToast(item.id + ' added to this browser tab only. It is not saved to the database and will disappear on reload.', 'warn');
+      }
+
+      editModalConfirm() {
+        const st = this._edit;
+        if (!st || this._modalBusy || st.locked) return;
+        if (st.stale) this.loadLatestEditVersion();
+        else this.saveProcurementEdit();
+      }
+
+      markEditStale(message) {
+        const st = this._edit;
+        st.stale = true;
+        this.setEditInputsDisabled(true);
+        document.getElementById('modal-confirm').textContent = 'Load latest version';
+        this.modalError((message || 'This record was changed by someone else after you opened it.')
+          + ' Select "Load latest version" to see the saved values, then re-apply your changes.');
+      }
+
+      async loadLatestEditVersion() {
+        const st = this._edit;
+        this.setModalBusy(true, 'Loading...');
+        let res;
+        try {
+          res = await this.fetchProcurementDetail(st.id);
+        } catch (error) {
+          console.error('Failed to reload procurement:', error);
+          this.setModalBusy(false, 'Load latest version');
+          this.modalError('Could not load the latest version. Check your connection and try again.');
+          return;
+        }
+        this.setModalBusy(false);
+        if (this._edit !== st) return;
+        if (this.editDetailFailed(res)) return;
+        if (this.fillEditForm(res.data.procurement)) {
+          this.showToast('Latest saved version loaded. Re-apply your changes, then save.', 'info');
+        }
+        this.loadRegistry();                              // the registry row may also be out of date
+      }
+
+      async saveProcurementEdit() {
+        const st = this._edit;
+        const val = id => document.getElementById(id).value;
+        const payload = {
+          title: val('e-title').trim(),
+          abc: val('e-abc').trim(),                        // sent as text: the server parses the exact amount
+          unit: val('e-unit').trim(),
+          mode: val('e-mode'),
+          category: val('e-category'),
+          timeline: val('e-timeline').trim(),
+          expectedVersion: st.version
+        };
+        const fieldIds = { title: 'e-title', abc: 'e-abc', unit: 'e-unit', mode: 'e-mode', category: 'e-category', timeline: 'e-timeline' };
+        const mark = names => Object.entries(fieldIds).forEach(([name, id]) => {
+          const el = document.getElementById(id);
+          el.classList.toggle('border-red-500', names.includes(name));
+          el.classList.toggle('border-gray-300', !names.includes(name));
+        });
+        const missing = [];
+        if (!payload.title) missing.push('title');
+        if (!(parseAmount(payload.abc) > 0)) missing.push('abc');
+        if (!payload.unit) missing.push('unit');
+        if (!payload.mode) missing.push('mode');
+        if (!payload.category) missing.push('category');
+        mark(missing);
+        if (missing.length) {
+          this.modalError('Please complete all required fields and enter a valid ABC.');
+          return;
+        }
+
+        this.setModalBusy(true, 'Saving...');
+        let res;
+        try {
+          res = await this.sendJson('PUT', '/api/procurements/' + encodeURIComponent(st.id), payload);
+        } catch (error) {
+          console.error('Failed to save procurement changes:', error);
+          this.setModalBusy(false, 'Save Changes');
+          this.modalError('Could not confirm the save because of a connection problem. '
+            + 'Reload the record before trying again.');
+          return;
+        }
+        this.setModalBusy(false, 'Save Changes');
+        if (this._edit !== st) return;
+        const data = res.data || {};
+
+        if (res.ok && data.status === 'success') {
+          const item = data.procurement;
+          this._edit = null;
+          this.closeModal();
+          if (!item || item.id !== st.id) {
+            this.showToast('The change was saved, but the response was unexpected. The registry has been reloaded.', 'warn');
+            this.loadRegistry();
+            return;
+          }
+          const index = this.registry.findIndex(r => r.id === st.id);
+          if (index >= 0) this.registry[index] = item; else this.registry.push(item);
+          this.renderRegistry();
+          this.renderPublic();
+          this.renderSupplierLookup();
+          const changedFields = Array.isArray(data.changed) ? data.changed : [];
+          this.showToast(data.message || (st.id + ' updated.'), changedFields.length ? 'ok' : 'info');
+          if (Array.isArray(data.warnings)) data.warnings.forEach(w => this.showToast(w, 'warn'));
+          return;
+        }
+        if (res.status === 400 && data.errors) {
+          if (data.errors.expectedVersion) { this.markEditStale(); return; }
+          mark(Object.keys(data.errors));
+          this.modalError((data.message || 'Please correct the highlighted fields.') + ' ' + Object.values(data.errors).join(' '));
+          return;
+        }
+        if (res.status === 409 && data.code === 'stale') { this.markEditStale(data.message); return; }
+        if (res.status === 401 || (res.status === 403 && data.code === 'password_change_required')) {
+          this.endEdit();
+          this.handleSessionExpired(data.message || 'Your session expired. Please sign in again.');
+          return;
+        }
+        if (res.status === 403) {
+          this.endEdit();
+          this.showToast('You do not have permission to edit procurement records.', 'error');
+          return;
+        }
+        if (res.status === 404 || res.status === 409) {
+          this.endEdit();
+          this.showToast(data.message || 'This record can no longer be edited.', 'error');
+          this.loadRegistry();
+          return;
+        }
+        this.modalError(data.message || (res.status === 503
+          ? 'The system is busy. Please try again. Nothing was saved.'
+          : 'Could not save the changes. Nothing was saved.'));
       }
 
       actionFor(item) {
@@ -2788,6 +3160,10 @@
           } else if (this.roleKey === 'admin') {
             actHtml = '<span class="text-[10px] text-gray-400 whitespace-nowrap">Read-only</span>';
           }
+          // Phase 3 Step 3: Edit button (display only; the server decides who may edit)
+          const editHtml = this.canShowEdit(r)
+            ? `<button type="button" onclick="window.workspaceManager.editProcurement('${r.id}')" class="inline-flex items-center gap-1.5 bg-white border border-[#A60E0D] text-[#A60E0D] hover:bg-red-50 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide cursor-pointer whitespace-nowrap"><i class="fa-solid fa-pen"></i>Edit</button>`
+            : '';
           const bidderHtml = r.bidder
             ? `<div class="font-semibold text-gray-800">${esc(r.bidder)}</div><div class="text-[10px] text-gray-400 font-mono">${r.bidAmount ? esc(peso(r.bidAmount)) : ''}${r.bids ? ' • ' + r.bids + ' bid' + (r.bids > 1 ? 's' : '') : ''}</div>`
             : '<span class="text-gray-400">Not yet determined</span>';
@@ -2798,7 +3174,7 @@
             <td class="px-4 py-3 font-mono text-gray-900 text-right whitespace-nowrap align-top">${esc(peso(r.abc))}</td>
             <td class="px-4 py-3 align-top min-w-[160px]">${bidderHtml}</td>
             <td class="px-4 py-3 align-top"><span class="inline-block border px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${STATUS_STYLE[r.status] || ''}">${esc(r.status)}</span>${r.resolution ? `<div class="text-[10px] text-gray-400 mt-1 whitespace-nowrap">${esc(r.resolution)}</div>` : ''}</td>
-            <td class="px-4 py-3 text-right align-top">${actHtml}</td>
+            <td class="px-4 py-3 text-right align-top">${editHtml ? `<div class="flex flex-wrap justify-end gap-1.5">${editHtml}${actHtml}</div>` : actHtml}</td>
           </tr>`;
         }).join('') : `<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No registry items match the current filter.</td></tr>`;
 
@@ -2954,7 +3330,10 @@
         document.getElementById('modal-title').textContent = cfg.title;
         document.getElementById('modal-subtitle').textContent = cfg.subtitle || '';
         document.getElementById('modal-body').innerHTML = cfg.body;
-        document.getElementById('modal-confirm').textContent = cfg.confirmText || 'Confirm';
+        const confirmBtn = document.getElementById('modal-confirm');
+        confirmBtn.textContent = cfg.confirmText || 'Confirm';
+        confirmBtn.disabled = false;                     // Phase 3: a previous dialog may have disabled it
+        confirmBtn.classList.remove('opacity-60', 'cursor-not-allowed');
         const err = document.getElementById('modal-error');
         err.classList.add('hidden');
         err.textContent = '';
@@ -2975,6 +3354,7 @@
         this.closeModal();
       }
       closeModal() {
+        if (this._modalBusy) return;                    // Phase 3: a save is in progress
         const m = document.getElementById('modal');
         if (!m) return;
         m.classList.add('hidden');
