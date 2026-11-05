@@ -527,13 +527,33 @@
               <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
                 <i class="fa-solid fa-circle-nodes text-[#A60E0D]"></i> Supplier Network Mappings Explorer
               </h2>
+              <div id="kg-ref-desc" class="hidden">
               <p class="text-xs text-gray-500 max-w-3xl">Semantic property graph built from PhilGEPS Award Notice Abstracts. Agencies, suppliers, officials, categories and locations are resolved into single nodes, so separate procurements connect wherever they share an entity.</p>
               <p class="text-[11px] text-blue-900 max-w-3xl mt-1.5"><span class="demo-pill ref-pill mr-1">Reference data &bull; other agencies</span>Every record in this graph is a public award abstract from another government agency. None of them is a Santa Rosa City procurement, and they are not mixed into the City's procurement registry.</p>
+              </div>
+              <!-- Sample City Graph: sample procurement records from the database (data_source = 'sample') -->
+              <div id="kg-sample-desc">
+              <p class="text-xs text-gray-500 max-w-3xl">Knowledge graph built from the system's sample procurement records in the database: procurements, bids, BAC resolutions, award notices, contracts, suppliers and their representatives. Each node is one database record; nothing is merged by name.</p>
+              <p class="text-[11px] text-amber-900 max-w-3xl mt-1.5"><span id="kg-sample-label" class="demo-pill mr-1">Sample Data</span>Fictional demonstration records (data_source = sample). They are not Santa Rosa City procurement records and are kept separate from the PhilGEPS reference graph. <button type="button" onclick="window.workspaceManager.exportSampleGraph()" class="ml-1 underline font-semibold text-amber-900 hover:text-[#A60E0D] cursor-pointer">Export Sample Graph (CSV)</button></p>
+              </div>
             </div>
             <div id="kg-legend" class="flex flex-wrap gap-1.5 text-[10px] max-w-xl"></div>
           </div>
 
           <div class="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-4 min-w-0">
+            <!-- Graph data: Sample City Graph (default) or PhilGEPS reference graph - never mixed -->
+            <div class="flex flex-wrap items-center gap-2 pb-3 border-b border-gray-100" role="tablist" aria-label="Graph data">
+              <span class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">Graph data</span>
+              <button type="button" data-kg-mode="sample" class="kg-mode ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
+                <div class="text-xs font-bold"><i class="fa-solid fa-flask mr-1"></i>Sample City Graph</div>
+                <div class="ds-sub text-[10px] text-gray-500">Sample Data &bull; fictional records</div>
+              </button>
+              <button type="button" data-kg-mode="reference" class="kg-mode ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
+                <div class="text-xs font-bold"><i class="fa-solid fa-book-open mr-1"></i>PhilGEPS Reference</div>
+                <div class="ds-sub text-[10px] text-gray-500">Other agencies &bull; not City records</div>
+              </button>
+            </div>
+
             <!-- View tabs + search -->
             <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
               <div class="flex flex-wrap gap-2" role="tablist" aria-label="Graph view">
@@ -547,7 +567,7 @@
                 </button>
                 <button type="button" data-view="trail" class="kg-view ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
                   <div class="text-xs font-bold"><i class="fa-solid fa-route mr-1"></i>Audit Trail Lens</div>
-                  <div class="ds-sub text-[10px] text-gray-500">One contract, end to end</div>
+                  <div id="kg-trail-sub" class="ds-sub text-[10px] text-gray-500">One contract, end to end</div>
                 </button>
               </div>
               <div class="flex items-center gap-2 w-full xl:w-auto">
@@ -581,7 +601,7 @@
                   </select>
                 </label>
                 <label id="kg-trail-wrap" class="hidden items-center gap-1.5 text-gray-700">
-                  <span class="text-[10px] uppercase tracking-wider font-bold text-gray-500">Contract</span>
+                  <span id="kg-trail-label" class="text-[10px] uppercase tracking-wider font-bold text-gray-500">Contract</span>
                   <select id="kg-trail-select" class="border border-gray-300 rounded-lg px-2 py-1 bg-white text-xs max-w-[260px] focus:outline-none focus:border-[#A60E0D]"></select>
                 </label>
               </div>
@@ -593,6 +613,7 @@
             <!-- Canvas -->
             <div class="relative bg-slate-50 border border-gray-200 rounded-xl overflow-hidden h-[460px] sm:h-[600px]">
               <svg id="kg-svg" class="w-full h-full block select-none" role="img" aria-label="Procurement knowledge graph" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"></svg>
+              <div id="kg-status" class="hidden absolute inset-0 items-center justify-center pointer-events-none p-4"></div>
               <div class="absolute top-3 right-3 flex flex-col gap-1.5">
                 <button type="button" data-zoom="in" title="Zoom in" aria-label="Zoom in" class="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:border-[#A60E0D] hover:text-[#A60E0D] shadow-sm text-sm font-bold cursor-pointer">+</button>
                 <button type="button" data-zoom="out" title="Zoom out" aria-label="Zoom out" class="w-8 h-8 rounded-lg bg-white border border-gray-300 text-gray-700 hover:border-[#A60E0D] hover:text-[#A60E0D] shadow-sm text-sm font-bold cursor-pointer">&minus;</button>
@@ -609,7 +630,7 @@
             <div id="inspector" class="lg:col-span-3 bg-white border border-gray-200 rounded-xl p-5 shadow-sm min-w-0">
               <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-2 mb-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">Graph Node Attributes</h3>
-                <span class="text-[10px] font-mono text-gray-400">Source: PhilGEPS award abstracts (other agencies)</span>
+                <span id="kg-inspector-source" class="text-[10px] font-mono text-gray-400">Source: PhilGEPS award abstracts (other agencies)</span>
               </div>
               <div id="inspector-body"></div>
             </div>
@@ -1081,10 +1102,12 @@
       Person:      { color: '#475569', code: 'PER', r: 14, label: 'Person',           icon: 'fa-user-tie' },
       Category:    { color: '#b45309', code: 'CAT', r: 16, label: 'Category',         icon: 'fa-tags' },
       Mode:        { color: '#4338ca', code: 'MOD', r: 15, label: 'Procurement Mode', icon: 'fa-list-check' },
-      Location:    { color: '#0f766e', code: 'LOC', r: 13, label: 'Location',         icon: 'fa-location-dot' }
+      Location:    { color: '#0f766e', code: 'LOC', r: 13, label: 'Location',         icon: 'fa-location-dot' },
+      Resolution:  { color: '#be185d', code: 'RES', r: 16, label: 'BAC Resolution',   icon: 'fa-gavel' }   // Sample City Graph only
     };
     const LAYER_OF = { Person: 'person', Category: 'category', Mode: 'mode', Location: 'location' };
-    const EDGE_LEN = { FOR_PROJECT: 95, PROCURED_BY: 105, AWARDED_TO: 120, FORMALIZED_AS: 85, CERTIFIED_BY: 95, REPRESENTED_BY: 85, CLASSIFIED_AS: 100, CONDUCTED_VIA: 150, LOCATED_IN: 95, SUPPLIES_TO: 230, CO_LOCATED_WITH: 200 };
+    const EDGE_LEN = { FOR_PROJECT: 95, PROCURED_BY: 105, AWARDED_TO: 120, FORMALIZED_AS: 85, CERTIFIED_BY: 95, REPRESENTED_BY: 85, CLASSIFIED_AS: 100, CONDUCTED_VIA: 150, LOCATED_IN: 95, SUPPLIES_TO: 230, CO_LOCATED_WITH: 200,
+      BID_ON: 130, RESOLVES: 90, RECOMMENDS: 120, BIDS_TO: 230 };   // last four: Sample City Graph only
     const EDGE_INFO = {
       FOR_PROJECT: 'The award notice belongs to this project or requisition.',
       PROCURED_BY: 'The project was procured by this procuring entity.',
@@ -1396,7 +1419,254 @@
 
     const pesoShort = n => (n >= 1e6 ? '₱' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '₱' + (n / 1e3).toFixed(1) + 'K' : peso(n));
 
-    const KG = buildKnowledgeGraph(PHILGEPS_ABSTRACTS);
+    // PhilGEPS reference graph (other agencies), built exactly as before.
+    const REF_KG = buildKnowledgeGraph(PHILGEPS_ABSTRACTS);
+    REF_KG.meta = {
+      mode: 'reference',
+      recordLabel: ri => PHILGEPS_ABSTRACTS[ri].noticeNo,
+      sourceHeading: 'Source notices',
+      mergedBadge: k => 'Resolved from ' + k + ' records',
+      recordedTag: 'Recorded on PhilGEPS abstract',
+      recordedText: 'Taken directly from the award notice abstract during ingestion.',
+      overviewIntro: 'Click any node or relationship to inspect it. Nodes with a gold badge were named in more than one abstract and have been resolved into a single entity; these shared nodes are what connect separate procurements.',
+      mergedHeading: 'Entities resolved across records',
+      overviewNote: 'Names are normalized (case, punctuation, suffixes such as "Inc." or "Corp.") before matching. Procurement modes are mapped to one canonical node, so "Public Bidding" and "Competitive Public Bidding" become the same mode.',
+      inspectorSource: 'Source: PhilGEPS award abstracts (other agencies)',
+      nodeBadge: '',
+      cypherCaption: '',
+      nodeSummary: NODE_SUMMARY,
+      edgeInfo: EDGE_INFO
+    };
+    // The graph the Supplier Network page shows: REF_KG or the Sample City Graph (switched by activateKGMode).
+    // Both are complete, separate graphs; they never share nodes or relationships.
+    let KG = REF_KG;
+
+    /* ---------- Sample City Graph (sample procurement records from the database, data_source = 'sample') ---------- */
+    /* Built from GET /api/graph/sample. Nodes are keyed by database record IDs, never merged by name.
+       Categories, modes and cities are lookup values and appear once each. */
+    const SAMPLE_BASIS = { LCRB: 'Lowest Calculated Responsive Bid (LCRB)', SCRB: 'Single Calculated Responsive Bid (SCRB)', FAIL: 'Failure of Bidding' };
+    const SAMPLE_EDGE_INFO = {
+      PROCURED_BY: 'The sample procurement is conducted by this procuring entity.',
+      CLASSIFIED_AS: 'The commodity category of the sample procurement.',
+      CONDUCTED_VIA: 'The procurement mode recorded for the sample procurement.',
+      BID_ON: 'The supplier submitted this bid, with the amount and rank as recorded. A bid alone does not make the supplier the recommended or winning bidder.',
+      RESOLVES: 'The BAC resolution recorded for this sample procurement.',
+      RECOMMENDS: 'The bid named in the BAC resolution as the recommended bid. The recommendation is recorded by the BAC; it is never derived from the bid ranking.',
+      FOR_PROJECT: 'The award notice belongs to this sample procurement.',
+      AWARDED_TO: 'The award notice names this supplier, with the awarded amount.',
+      FORMALIZED_AS: 'The award is formalized by this contract.',
+      CERTIFIED_BY: 'The official recorded as certifying the award.',
+      REPRESENTED_BY: 'The supplier’s representative, as recorded for the sample supplier.',
+      LOCATED_IN: 'City recorded for the entity (all sample records use the fictional "Sample City").',
+      SUPPLIES_TO: 'Inferred summary edge: how many awards and how much value this supplier received from this procuring entity, derived from the award paths.',
+      BIDS_TO: 'Inferred summary edge: how many bids this supplier submitted to procurements of this entity, and how many of its bids were awarded.',
+      CO_LOCATED_WITH: 'Inferred context edge: the two entities share a city (all sample records use the fictional "Sample City"). It is not an indicator of any irregularity.'
+    };
+    const SAMPLE_NODE_SUMMARY = {
+      Agency: 'Procuring entity of the sample procurements (fictional demonstration entity).',
+      Supplier: 'One sample supplier record. Its BID_ON, RECOMMENDS and AWARDED_TO links show every sample procurement it took part in.',
+      Project: 'One sample procurement record, with its Approved Budget for the Contract (ABC) and stage. Bids, the BAC resolution and the award notice all connect here.',
+      Resolution: 'The BAC resolution recorded for a sample procurement: LCRB, SCRB or failure of bidding, and the bid it recommends.',
+      AwardNotice: 'The Notice of Award recorded for a sample procurement, naming the awarded supplier and amount.',
+      Contract: 'The contract that formalizes a sample award.',
+      Person: 'A sample supplier representative (or a certifying official, when one is recorded).',
+      Category: 'Commodity category shared by sample procurements.',
+      Mode: 'Procurement mode used by sample procurements.',
+      Location: 'City recorded for sample entities (fictional).'
+    };
+    function sampleMeta(data) {
+      const label = (data && data.dataLabel) || 'Sample Data';
+      return {
+        mode: 'sample', dataLabel: label, notice: (data && data.notice) || '',
+        recordLabel: r => r,
+        sourceHeading: 'Sample procurements',
+        mergedBadge: k => 'In ' + k + ' sample procurements',
+        recordedTag: 'Recorded in the sample records',
+        recordedText: 'Read directly from the sample records in the database (procurements, bids, BAC resolutions, award notices, suppliers).',
+        overviewIntro: 'Click any node or relationship to inspect it. Every node is one sample database record (' + label + '). Nodes with a gold badge take part in more than one sample procurement.',
+        mergedHeading: 'Entities in more than one sample procurement',
+        overviewNote: 'Sample nodes are keyed by database record IDs. Suppliers are never merged by name, and sample records are never combined with the PhilGEPS reference data or any other data source.',
+        inspectorSource: 'Source: ' + label + ' (fictional records, data_source = sample)',
+        nodeBadge: '<span class="demo-pill">' + esc(label) + '</span>',
+        cypherCaption: 'Equivalent Cypher pattern, for illustration only. The query runs in this page; Neo4j is not connected.',
+        nodeSummary: SAMPLE_NODE_SUMMARY,
+        edgeInfo: SAMPLE_EDGE_INFO
+      };
+    }
+
+    function buildSampleCityGraph(data) {
+      const nodes = new Map(), edges = [], edgeIdx = {};
+      const node = (type, key, label, props, rec) => {
+        const id = 'sample-' + type.toLowerCase() + ':' + key;
+        let n = nodes.get(id);
+        if (!n) { n = { id, type, label, props: {}, records: [], source: 'sample' }; nodes.set(id, n); }
+        Object.keys(props || {}).forEach(k => { const v = props[k]; if (v != null && v !== '' && n.props[k] == null) n.props[k] = v; });
+        if (rec != null) pushUnique(n.records, rec);
+        return n;
+      };
+      const link = (a, type, b, props, rec) => {
+        const k = a.id + '|' + type + '|' + b.id;
+        if (edgeIdx[k]) { if (rec != null) pushUnique(edgeIdx[k].records, rec); return edgeIdx[k]; }
+        const e = { id: 's' + edges.length, from: a.id, to: b.id, type, props: props || {}, provenance: 'Sample', records: rec != null ? [rec] : [] };
+        edges.push(e); edgeIdx[k] = e; return e;
+      };
+      const projById = {}, bidById = {}, supById = {};
+      (data.procurements || []).forEach(p => {
+        const ref = p.id;
+        const ag = node('Agency', p.entity.id, p.entity.name, { city: p.entity.city, province: p.entity.province }, ref);
+        const pj = node('Project', p.procurementId, p.title, { title: p.title, referenceNo: p.id, procurementId: p.procurementId, abc: p.abc,
+          status: p.status, unit: p.unit, procurementClass: p.category, fiscalYear: p.fiscalYear, timeline: p.timeline }, ref);
+        projById[p.procurementId] = pj;
+        link(pj, 'PROCURED_BY', ag, {}, ref);
+        if (p.commodityCategory) link(pj, 'CLASSIFIED_AS', node('Category', slugKey(p.commodityCategory), p.commodityCategory, {}, ref), {}, ref);
+        if (p.mode) link(pj, 'CONDUCTED_VIA', node('Mode', slugKey(p.mode), p.mode, {}, ref), {}, ref);
+        if (p.entity.city) link(ag, 'LOCATED_IN', node('Location', slugKey(p.entity.city), p.entity.city, { province: p.entity.province }, null), {}, null);
+      });
+      (data.suppliers || []).forEach(s => {
+        const sp = node('Supplier', s.supplierId, s.name, { address: s.address, city: s.city, province: s.province }, null);
+        supById[s.supplierId] = sp;
+        (s.representatives || []).forEach(r => {
+          const pr = node('Person', r.personId, r.name, {}, null);
+          pr.props.roles = pr.props.roles || []; pushUnique(pr.props.roles, (r.position || 'Representative') + ', ' + s.name);
+          link(sp, 'REPRESENTED_BY', pr, { position: r.position || '' }, null);
+        });
+        if (s.city) link(sp, 'LOCATED_IN', node('Location', slugKey(s.city), s.city, { province: s.province }, null), {}, null);
+      });
+      (data.bids || []).forEach(b => {
+        const pj = projById[b.procurementId], sp = supById[b.supplierId];
+        if (!pj || !sp) return;
+        bidById[b.bidId] = b;
+        const ref = pj.props.referenceNo;
+        pushUnique(sp.records, ref);
+        link(sp, 'BID_ON', pj, { amount: b.amount, rank: b.rank == null ? '' : b.rank }, ref);
+      });
+      (data.resolutions || []).forEach(r => {
+        const pj = projById[r.procurementId]; if (!pj) return;
+        const ref = pj.props.referenceNo;
+        const rs = node('Resolution', r.resolutionId, r.resolutionNo, { resolutionNo: r.resolutionNo, recommendation: r.recommendation,
+          date: r.date, postQualification: r.postQualificationDone ? 'Completed' : 'Not completed' }, ref);
+        link(rs, 'RESOLVES', pj, { recommendation: r.recommendation }, ref);
+        const bid = r.recommendedBidId != null ? bidById[r.recommendedBidId] : null;
+        const sp = bid && supById[bid.supplierId];
+        if (sp) link(rs, 'RECOMMENDS', sp, { amount: bid.amount, rank: bid.rank == null ? '' : bid.rank, basis: SAMPLE_BASIS[r.recommendation] || r.recommendation }, ref);
+      });
+      (data.awards || []).forEach(a => {
+        const pj = projById[a.procurementId], sp = supById[a.supplierId];
+        if (!pj || !sp) return;
+        const ref = pj.props.referenceNo;
+        pushUnique(sp.records, ref);
+        const an = node('AwardNotice', a.awardId, 'Award Notice ' + a.noticeNo, { noticeNo: a.noticeNo, amount: a.amount, awardDate: a.awardDate,
+          published: a.publishedDate, basis: a.basis, lotNo: a.lotNo }, ref);
+        link(an, 'FOR_PROJECT', pj, {}, ref);
+        link(an, 'AWARDED_TO', sp, { amount: a.amount }, ref);
+        if (a.contract) link(an, 'FORMALIZED_AS', node('Contract', a.contract.id, 'Contract ' + a.contract.no, { contractNo: a.contract.no }, ref), {}, ref);
+        if (a.certifier) {
+          const pr = node('Person', a.certifier.id, a.certifier.name, {}, ref);
+          pr.props.roles = pr.props.roles || []; pushUnique(pr.props.roles, (a.certifier.role || 'Certifying official') + ', ' + a.noticeNo);
+          link(an, 'CERTIFIED_BY', pr, { role: a.certifier.role || '' }, ref);
+        }
+      });
+      const G = { nodes: [...nodes.values()], edges };
+      indexGraph(G);
+      G.nodes.forEach(n => {
+        if (n.type === 'Contract') {
+          const ns = G.in[n.id].filter(e => e.type === 'FORMALIZED_AS').map(e => G.byId[e.from]);
+          n.props.amount = ns.reduce((t, x) => t + (x.props.amount || 0), 0);
+          n.props.lots = ns.length;
+        }
+        if (n.type === 'Project') {
+          const ns = G.in[n.id].filter(e => e.type === 'FOR_PROJECT').map(e => G.byId[e.from]);
+          n.props.awarded = ns.reduce((t, x) => t + (x.props.amount || 0), 0);
+          n.props.pctOfAbc = n.props.abc && ns.length ? n.props.awarded / n.props.abc * 100 : null;
+        }
+      });
+      addInferredEdges(G);                 // SUPPLIES_TO and CO_LOCATED_WITH, same rules as the reference graph
+      // BIDS_TO: (Supplier)-[:BID_ON]->(:Project)-[:PROCURED_BY]->(Agency), one summary edge per pair
+      let k = 0;
+      G.nodes.filter(n => n.type === 'Supplier').forEach(s => {
+        const per = {};
+        G.out[s.id].filter(e => e.type === 'BID_ON').forEach(be => {
+          const pj = G.byId[be.to];
+          const ag = G.out[pj.id].filter(e => e.type === 'PROCURED_BY').map(e => G.byId[e.to])[0];
+          if (!ag) return;
+          per[ag.id] = per[ag.id] || { bids: 0, awards: 0, total: 0, records: [] };
+          per[ag.id].bids++; pushUnique(per[ag.id].records, pj.props.referenceNo);
+        });
+        G.in[s.id].filter(e => e.type === 'AWARDED_TO').forEach(ae => {
+          const an = G.byId[ae.from];
+          const pj = G.out[an.id].filter(e => e.type === 'FOR_PROJECT').map(e => G.byId[e.to])[0];
+          const ag = pj && G.out[pj.id].filter(e => e.type === 'PROCURED_BY').map(e => G.byId[e.to])[0];
+          if (ag && per[ag.id]) { per[ag.id].awards++; per[ag.id].total += an.props.amount || 0; }
+        });
+        Object.keys(per).forEach(agId => {
+          G.edges.push({ id: 's-inf' + (k++), from: s.id, to: agId, type: 'BIDS_TO', provenance: 'Inferred',
+            rule: '(Supplier)-[:BID_ON]->(:Project)-[:PROCURED_BY]->(Agency)',
+            props: { bids: per[agId].bids, awards: per[agId].awards, total: per[agId].total }, records: per[agId].records });
+        });
+      });
+      indexGraph(G);
+      G.meta = sampleMeta(data);
+      return G;
+    }
+
+    const emptyKGLayout = () => ({ nodes: [], edges: [], pos: {}, halos: [], decor: [], vb: { x: 0, y: 0, w: 1200, h: 600 } });
+    const EMPTY_SAMPLE_KG = (() => { const G = { nodes: [], edges: [] }; indexGraph(G); G.meta = sampleMeta(null); return G; })();
+    const EMPTY_SAMPLE_LAYOUTS = { graph: emptyKGLayout(), suppliers: emptyKGLayout() };
+
+    // Deterministic layered layout: entity / categories / procurements / resolutions + awards / contracts / suppliers / representatives.
+    function computeSampleLayout(G) {
+      if (!G.nodes.length) return emptyKGLayout();
+      const P = {};
+      const byType = t => G.nodes.filter(n => n.type === t);
+      const out = (id, t) => G.out[id].filter(e => e.type === t).map(e => e.to);
+      const inn = (id, t) => G.in[id].filter(e => e.type === t).map(e => e.from);
+      const projects = byType('Project').sort((a, b) => a.props.procurementId - b.props.procurementId);
+      const X0 = 110, GAP = 190;
+      const mid = X0 + Math.max(0, projects.length - 1) * GAP / 2;
+      projects.forEach((p, i) => { P[p.id] = { x: X0 + i * GAP, y: 340 }; });
+      const meanX = ids => { const xs = ids.map(id => P[id] && P[id].x).filter(v => v != null); return xs.length ? xs.reduce((t, v) => t + v, 0) / xs.length : mid; };
+      byType('Agency').forEach((a, i) => { P[a.id] = { x: mid + i * 260, y: 80 }; });
+      byType('Location').forEach((l, i) => { P[l.id] = { x: mid + 320 + i * 160, y: 80 }; });
+      byType('Mode').forEach(m => { P[m.id] = { x: meanX(inn(m.id, 'CONDUCTED_VIA')), y: 140 }; });
+      byType('Category').forEach(c => { P[c.id] = { x: meanX(inn(c.id, 'CLASSIFIED_AS')), y: 215 }; });
+      projects.forEach(p => {
+        const res = inn(p.id, 'RESOLVES'), ans = inn(p.id, 'FOR_PROJECT'), both = res.length && ans.length;
+        res.forEach((id, k) => { P[id] = { x: P[p.id].x - (both ? 50 : 0) - k * 34, y: 480 }; });
+        ans.forEach((id, k) => { P[id] = { x: P[p.id].x + (both ? 50 : 0) + k * 34, y: 480 }; });
+      });
+      byType('Contract').forEach(c => { P[c.id] = { x: meanX(inn(c.id, 'FORMALIZED_AS')), y: 600 }; });
+      const sups = byType('Supplier').map(s => ({ s, x: meanX(out(s.id, 'BID_ON').concat(inn(s.id, 'AWARDED_TO').flatMap(an => out(an, 'FOR_PROJECT')))) }))
+        .sort((a, b) => (a.x - b.x) || a.s.label.localeCompare(b.s.label));
+      const span = GAP * Math.max(0, projects.length - 1);
+      const sg = sups.length > 1 ? Math.max(150, span / (sups.length - 1)) : 0;
+      sups.forEach((o, i) => { P[o.s.id] = { x: mid + (i - (sups.length - 1) / 2) * sg, y: 740 }; });
+      byType('Person').forEach(p => {
+        const sup = inn(p.id, 'REPRESENTED_BY'), cert = inn(p.id, 'CERTIFIED_BY');
+        P[p.id] = sup.length ? { x: meanX(sup), y: 870 } : { x: meanX(cert), y: 650 };
+      });
+      G.nodes.forEach((n, i) => { if (!P[n.id]) P[n.id] = { x: mid + (i % 5) * 60, y: 960 }; });
+      const pos = forceLayout(G.nodes, [], () => ({ x: mid, y: 420 }), { iters: 0, init: P, collide: 46 });   // collision pass only
+      const core = G.nodes.filter(n => n.type !== 'Mode' && n.type !== 'Location').map(n => n.id);
+      const halo = Object.assign(boundsOf(pos, core, { l: 80, r: 80, t: 64, b: 70 }),
+        { title: 'Sample Data · fictional demonstration records (data_source = sample)' });
+      const nb = boundsOf(pos, G.nodes.map(n => n.id), { l: 90, r: 90, t: 70, b: 80 });
+      const x0 = Math.min(nb.x, halo.x) - 20, y0 = Math.min(nb.y, halo.y) - 20;
+      const x1 = Math.max(nb.x + nb.w, halo.x + halo.w) + 20, y1 = Math.max(nb.y + nb.h, halo.y + halo.h) + 20;
+      return { nodes: G.nodes, edges: G.edges, pos, halos: [halo], decor: [], vb: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
+    }
+
+    // Supplier view: procuring entity in the centre, every sample supplier around it, linked by BIDS_TO.
+    function computeSampleSupplierLayout(G) {
+      const ags = G.nodes.filter(n => n.type === 'Agency');
+      const sps = G.nodes.filter(n => n.type === 'Supplier').sort((a, b) => a.label.localeCompare(b.label));
+      const nodes = ags.concat(sps);
+      if (!nodes.length) return emptyKGLayout();
+      const edges = G.edges.filter(e => e.type === 'BIDS_TO');
+      const pos = {}, cx = 600, cy = 420, R = 330;
+      ags.forEach((a, i) => { pos[a.id] = { x: cx + (i - (ags.length - 1) / 2) * 220, y: cy }; });
+      sps.forEach((s, i) => { const ang = -Math.PI / 2 + i * 2 * Math.PI / sps.length; pos[s.id] = { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) }; });
+      return { nodes, edges, pos, halos: [], decor: [], vb: boundsOf(pos, nodes.map(n => n.id), { l: 150, r: 150, t: 90, b: 120 }) };
+    }
 
     /* ---------- Graph traversal helpers ---------- */
     const nbOut = (id, type) => KG.out[id].filter(e => e.type === type).map(e => KG.byId[e.to]);
@@ -1414,6 +1684,7 @@
     function nodeLabel(n) {
       if (n.type === 'AwardNotice') return 'NOA ' + n.props.noticeNo + (n.props.lotNo ? ' · Lot ' + n.props.lotNo : '');
       if (n.type === 'Contract') return n.props.contractNo;
+      if (n.type === 'Project' && n.props.referenceNo) return n.props.referenceNo;   // Sample City Graph: reference number
       return n.label;
     }
 
@@ -1520,6 +1791,95 @@
       }
     ];
 
+    /* ---------- Sample City Graph queries (run against the sample graph only) ---------- */
+    const SAMPLE_QUERIES = [
+      {
+        id: 'sample-participation', icon: 'fa-inbox', title: 'Bids, resolutions and awards per procurement',
+        cypher: 'MATCH (p:Project)\nOPTIONAL MATCH (s:Supplier)-[:BID_ON]->(p)\nOPTIONAL MATCH (r:Resolution)-[:RESOLVES]->(p)\nOPTIONAL MATCH (r)-[:RECOMMENDS]->(rec:Supplier)\nOPTIONAL MATCH (n:AwardNotice)-[:FOR_PROJECT]->(p)\nRETURN p.referenceNo, p.status, count(DISTINCT s) AS bids,\n       r.resolutionNo, rec.name, n.noticeNo',
+        run() {
+          const hl = new Set(), rows = [];
+          KG.nodes.filter(n => n.type === 'Project').sort((a, b) => a.props.procurementId - b.props.procurementId).forEach(p => {
+            const bidders = nbIn(p.id, 'BID_ON'), res = nbIn(p.id, 'RESOLVES'), ans = nbIn(p.id, 'FOR_PROJECT');
+            const rec = uniqNodes(res.flatMap(r => nbOut(r.id, 'RECOMMENDS')));
+            const aw = uniqNodes(ans.flatMap(a => nbOut(a.id, 'AWARDED_TO')));
+            rows.push({ goto: p.id, cells: [p.props.referenceNo, p.props.status, String(bidders.length),
+              res.map(r => r.props.resolutionNo + ' (' + r.props.recommendation + ')').join('; ') || '—',
+              rec.map(s => s.label).join('; ') || '—', aw.map(s => s.label).join('; ') || '—'] });
+            bidders.forEach(s => hlPath(hl, [s.id, p.id]));
+            res.forEach(r => { hlPath(hl, [r.id, p.id]); nbOut(r.id, 'RECOMMENDS').forEach(s => hlPath(hl, [r.id, s.id])); });
+            ans.forEach(a => { hlPath(hl, [a.id, p.id]); nbOut(a.id, 'AWARDED_TO').forEach(s => hlPath(hl, [a.id, s.id])); });
+          });
+          const withBids = rows.filter(r => r.cells[2] !== '0').length, withRes = rows.filter(r => r.cells[3] !== '—').length, withAw = rows.filter(r => r.cells[5] !== '—').length;
+          return { cols: ['Procurement', 'Stage', 'Bids', 'BAC resolution', 'Recommended', 'Awarded to'], rows, hl,
+            finding: withBids + ' of ' + rows.length + ' sample procurements have recorded bids, ' + withRes + ' have a BAC resolution and ' + withAw
+              + ' an award notice. Recommended suppliers come from the recorded resolutions, not from the bid ranking.' };
+        }
+      },
+      {
+        id: 'sample-suppliers', icon: 'fa-truck-ramp-box', title: 'Bids and awards per sample supplier',
+        cypher: 'MATCH (s:Supplier)\nOPTIONAL MATCH (s)-[b:BID_ON]->(:Project)\nOPTIONAL MATCH (:Resolution)-[r:RECOMMENDS]->(s)\nOPTIONAL MATCH (n:AwardNotice)-[:AWARDED_TO]->(s)\nRETURN s.name, count(DISTINCT b) AS bids, count(DISTINCT r) AS recommended,\n       count(DISTINCT n) AS awards, sum(n.amount) AS total',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.type === 'Supplier').map(s => {
+            const bids = nbOut(s.id, 'BID_ON'), rec = nbIn(s.id, 'RECOMMENDS'), ans = nbIn(s.id, 'AWARDED_TO');
+            const total = ans.reduce((t, a) => t + (a.props.amount || 0), 0);
+            if (ans.length) { hl.add(s.id); ans.forEach(a => { const pj = nbOut(a.id, 'FOR_PROJECT')[0]; hlPath(hl, [s.id, a.id, pj && pj.id]); }); }
+            return { goto: s.id, n: bids.length, cells: [s.label, String(bids.length), String(rec.length), String(ans.length), ans.length ? peso(total) : '—'] };
+          }).sort((a, b) => (b.n - a.n) || a.cells[0].localeCompare(b.cells[0]));
+          const awarded = rows.filter(r => r.cells[3] !== '0');
+          return { cols: ['Supplier', 'Bids', 'Recommended', 'Awards', 'Total awarded'], rows, hl,
+            finding: rows.filter(r => r.n > 0).length + ' sample suppliers submitted bids; ' + awarded.length + ' of them hold award notices (highlighted).' };
+        }
+      },
+      {
+        id: 'sample-abc', icon: 'fa-scale-balanced', title: 'Awarded amount vs ABC (awarded sample procurements)',
+        cypher: 'MATCH (n:AwardNotice)-[:FOR_PROJECT]->(p:Project)\nWITH p, sum(n.amount) AS awarded\nRETURN p.referenceNo, p.abc, awarded,\n       round(100.0 * awarded / p.abc, 1) AS pctOfABC\nORDER BY pctOfABC',
+        run() {
+          const hl = new Set();
+          const projects = KG.nodes.filter(n => n.type === 'Project' && n.props.pctOfAbc != null).sort((a, b) => a.props.pctOfAbc - b.props.pctOfAbc);
+          const rows = projects.map(p => {
+            hl.add(p.id); nbIn(p.id, 'FOR_PROJECT').forEach(an => hlPath(hl, [p.id, an.id]));
+            return { goto: p.id, cells: [p.props.referenceNo, peso(p.props.abc), peso(p.props.awarded), p.props.pctOfAbc.toFixed(1) + '%'] };
+          });
+          const over = projects.filter(p => p.props.pctOfAbc > 100).length;
+          return { cols: ['Procurement', 'ABC', 'Awarded', '% of ABC'], rows, hl,
+            finding: rows.length ? (over ? over + ' awarded sample procurement(s) exceed the ABC.' : 'All ' + rows.length + ' awarded sample procurements are within their ABC.') : 'No sample procurement has an award notice.' };
+        }
+      },
+      {
+        id: 'sample-resolutions', icon: 'fa-gavel', title: 'BAC resolutions and recommended bids',
+        cypher: 'MATCH (r:Resolution)-[:RESOLVES]->(p:Project)\nOPTIONAL MATCH (r)-[rec:RECOMMENDS]->(s:Supplier)\nRETURN r.resolutionNo, p.referenceNo, r.recommendation,\n       s.name, rec.amount, rec.rank',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.type === 'Resolution').sort((a, b) => a.label.localeCompare(b.label)).map(r => {
+            const pj = nbOut(r.id, 'RESOLVES')[0];
+            const e = KG.out[r.id].find(x => x.type === 'RECOMMENDS');
+            const s = e && KG.byId[e.to];
+            hlPath(hl, [pj && pj.id, r.id, s && s.id]);
+            return { goto: r.id, cells: [r.props.resolutionNo, pj ? pj.props.referenceNo : '—', SAMPLE_BASIS[r.props.recommendation] || r.props.recommendation,
+              s ? s.label : '—', e ? peso(e.props.amount) : '—', e && e.props.rank !== '' ? String(e.props.rank) : '—'] };
+          });
+          const c = t => rows.filter(r => r.cells[2] === SAMPLE_BASIS[t]).length;
+          return { cols: ['Resolution', 'Procurement', 'Recommendation', 'Recommended supplier', 'Bid amount', 'Bid rank'], rows, hl,
+            finding: rows.length + ' BAC resolutions recorded: ' + c('LCRB') + ' LCRB, ' + c('SCRB') + ' SCRB, ' + c('FAIL')
+              + ' failure of bidding. Each recommendation is the bid named in the resolution; it is not derived from the bid ranking.' };
+        }
+      },
+      {
+        id: 'sample-by-mode', icon: 'fa-list-check', title: 'Sample procurements by mode', layers: { mode: true },
+        cypher: 'MATCH (p:Project)-[:CONDUCTED_VIA]->(m:Mode)\nRETURN m.name, count(p) AS procurements, collect(p.status) AS stages',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.type === 'Mode').map(m => {
+            const pjs = nbIn(m.id, 'CONDUCTED_VIA'); pjs.forEach(p => hlPath(hl, [m.id, p.id]));
+            return { goto: m.id, cells: [m.label, String(pjs.length), [...new Set(pjs.map(p => p.props.status))].join('; ')] };
+          }).sort((a, b) => Number(b.cells[1]) - Number(a.cells[1]));
+          return { cols: ['Mode', 'Procurements', 'Stages'], rows, hl,
+            finding: 'The sample procurements use ' + rows.length + ' procurement mode' + (rows.length === 1 ? '' : 's') + '.' };
+        }
+      }
+    ];
+
     const ROLE_KEYS = { 'BAC Secretariat': 'secretariat', 'BAC Member': 'member', 'Super Admin': 'admin' };
     const ROLE_HELP = {
       'BAC Secretariat': 'Encodes PRs, posts ITB/RFQ notices, logs bids, issues NOAs and prepares the PMR.',
@@ -1582,7 +1942,16 @@
         ];
 
         // Counts of the in-page reference graph; Neo4j is not connected yet (Phase 7).
-        this.graphStats = { nodes: KG.nodes.length, rels: KG.edges.length, lastIndex: 'Never (Neo4j not connected yet)' };
+        this.graphStats = { nodes: REF_KG.nodes.length, rels: REF_KG.edges.length, lastIndex: 'Never (Neo4j not connected yet)' };
+
+        // Sample City Graph (GET /api/graph/sample, signed-in staff only). Default graph on the Supplier Network page.
+        this.kgMode = 'sample';            // 'sample' | 'reference'
+        this.sampleKG = null;
+        this.sampleLayouts = null;
+        this._sampleState = 'idle';        // idle | loading | loaded | error
+        this._sampleRequest = 0;           // ignores out-of-order responses
+        this._sampleTrailCache = {};
+        this.sampleTrailAward = null;
 
         this.bindEvents();
         this.updateRoleHelp();
@@ -1783,6 +2152,8 @@
         this.switchPage('dashboard');
         this.startInactivityTimer(serverSeenAt);
         this.loadRegistry();                            // fresh copy from the database
+        this.kgMode = 'sample';                         // Supplier Network opens on the Sample City Graph
+        this.loadSampleGraph();                         // sample records only (data_source = 'sample')
         // Fix A: the public registry may have been blocked (403) while a pending
         // session was active; load it now so the Public Portal page is not empty.
         if (!this.publicRegistry.length) this.loadPublicRegistry();
@@ -2005,6 +2376,13 @@
         this.archived = [];                             // archive stage: archived records are internal data too
         this._archivedState = 'idle';
         this._archivedRequest++;                        // drop any response still in flight
+        this.sampleKG = null;                           // the sample graph is internal data too
+        this.sampleLayouts = null;
+        this._sampleState = 'idle';
+        this._sampleRequest++;
+        this._sampleTrailCache = {};
+        this.sampleTrailAward = null;
+        this.activateKGMode('sample');
         this.renderRegistry();
         this.renderArchived();
         this.renderPublic();
@@ -2067,58 +2445,254 @@
         this.kgLayers = { person: true, category: true, mode: false, location: false, inferred: false, labels: false };
         this.kgFocus = 1;
         this._kgRaf = null;
-        this.layouts = { graph: computeGraphLayout(KG) };
-        this.layouts.suppliers = computeSupplierLayout(KG);
+        // PhilGEPS reference graph layouts (unchanged); the sample layouts are built when the sample data loads.
+        this.refLayouts = { graph: computeGraphLayout(REF_KG) };
+        this.refLayouts.suppliers = computeSupplierLayout(REF_KG);
+        this.layouts = this.refLayouts;
 
-        const contracts = KG.nodes.filter(n => n.type === 'Contract');
+        const contracts = REF_KG.nodes.filter(n => n.type === 'Contract');
         const multi = contracts.find(c => c.props.lots > 1);
         this.trailContract = (multi || contracts[0]).id;
-        document.getElementById('kg-trail-select').innerHTML = contracts.map(c => {
-          const an = nbIn(c.id, 'FORMALIZED_AS')[0];
-          const ag = an && agencyOfNotice(an).ag;
-          return `<option value="${esc(c.id)}" ${c.id === this.trailContract ? 'selected' : ''}>${esc(c.props.contractNo)} — ${esc(ag ? ag.label : '')}</option>`;
-        }).join('');
 
-        document.getElementById('kg-legend').innerHTML = Object.keys(NODE_TYPES).map(t => {
-          const T = NODE_TYPES[t];
-          return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${T.color}"></span>${esc(T.label)}</span>`;
-        }).join('') + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#64748b" stroke-width="2"/></svg>Recorded</span>`
+        this.renderKGSnapshot();          // dashboard snapshot: PhilGEPS reference data (KG is REF_KG at this point)
+        this.activateKGMode(this.kgMode); // Supplier Network page: Sample City Graph by default
+      }
+
+      /* ----- Graph data: Sample City Graph or PhilGEPS reference (never mixed) ----- */
+      kgQueries() {
+        return this.kgMode === 'sample' ? SAMPLE_QUERIES : KG_QUERIES;
+      }
+
+      activateKGMode(mode) {
+        this.kgMode = mode === 'reference' ? 'reference' : 'sample';
+        const sample = this.kgMode === 'sample';
+        KG = sample ? (this.sampleKG || EMPTY_SAMPLE_KG) : REF_KG;
+        this.layouts = sample ? (this.sampleLayouts || EMPTY_SAMPLE_LAYOUTS) : this.refLayouts;
+        this.kgSel = null; this.kgHL = null; this.kgQuery = null;
+        this.kgT = { k: 1, x: 0, y: 0 };
+        const search = document.getElementById('graph-search'); if (search) search.value = '';
+        const msg = document.getElementById('search-result'); if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
+        const qr = document.getElementById('kg-query-result'); if (qr) qr.innerHTML = '';
+        if (!document.getElementById('kg-svg')) return;
+        this.renderKGChrome();
+        this.syncViewTabs();
+        this.renderKG();
+        if (KG.nodes.length) this.renderInspectorOverview();
+        else document.getElementById('inspector-body').innerHTML = '<p class="text-xs text-gray-500">No sample graph is loaded. <span class="demo-pill">Sample Data</span></p>';
+      }
+
+      // Everything on the page that depends on which graph is shown.
+      renderKGChrome() {
+        const sample = this.kgMode === 'sample', M = KG.meta;
+        document.querySelectorAll('.kg-mode').forEach(b => {
+          const on = b.getAttribute('data-kg-mode') === this.kgMode;
+          b.classList.toggle('active-dataset', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.getElementById('kg-ref-desc').classList.toggle('hidden', sample);
+        document.getElementById('kg-sample-desc').classList.toggle('hidden', !sample);
+        document.getElementById('kg-sample-label').textContent = sample ? M.dataLabel : 'Sample Data';
+        document.getElementById('kg-inspector-source').textContent = M.inspectorSource;
+        document.getElementById('kg-trail-label').textContent = sample ? 'Award notice' : 'Contract';
+        document.getElementById('kg-trail-sub').textContent = sample ? 'One sample award, end to end' : 'One contract, end to end';
+
+        // Audit Trail options
+        if (sample) {
+          const awards = KG.nodes.filter(n => n.type === 'AwardNotice').sort((a, b) => a.props.noticeNo.localeCompare(b.props.noticeNo));
+          if (!awards.some(a => a.id === this.sampleTrailAward)) this.sampleTrailAward = awards.length ? awards[0].id : null;
+          document.getElementById('kg-trail-select').innerHTML = awards.map(an => {
+            const pj = nbOut(an.id, 'FOR_PROJECT')[0];
+            return `<option value="${esc(an.id)}" ${an.id === this.sampleTrailAward ? 'selected' : ''}>${esc(an.props.noticeNo)} — ${esc(pj ? pj.props.referenceNo : '')}</option>`;
+          }).join('');
+        } else {
+          document.getElementById('kg-trail-select').innerHTML = KG.nodes.filter(n => n.type === 'Contract').map(c => {
+            const an = nbIn(c.id, 'FORMALIZED_AS')[0];
+            const ag = an && agencyOfNotice(an).ag;
+            return `<option value="${esc(c.id)}" ${c.id === this.trailContract ? 'selected' : ''}>${esc(c.props.contractNo)} — ${esc(ag ? ag.label : '')}</option>`;
+          }).join('');
+        }
+
+        // Legend: only the node types present in the shown graph
+        const present = new Set(KG.nodes.map(n => n.type));
+        document.getElementById('kg-legend').innerHTML = (sample ? `<span class="demo-pill">${esc(M.dataLabel)}</span>` : '')
+          + Object.keys(NODE_TYPES).filter(t => !sample || present.has(t)).filter(t => sample || t !== 'Resolution').map(t => {
+            const T = NODE_TYPES[t];
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${T.color}"></span>${esc(T.label)}</span>`;
+          }).join('') + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#64748b" stroke-width="2"/></svg>Recorded</span>`
           + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#d97706" stroke-width="2" stroke-dasharray="4 3"/></svg>Inferred</span>`;
 
+        // Statistics chips
         const recorded = KG.edges.filter(e => e.provenance !== 'Inferred').length;
         const inferred = KG.edges.length - recorded;
         const merged = KG.nodes.filter(n => n.records.length > 1).length;
-        document.getElementById('kg-ingest').innerHTML = [
-          ['fa-file-lines', PHILGEPS_ABSTRACTS.length + ' award abstracts from other agencies (reference)'],
-          ['fa-circle-nodes', KG.nodes.length + ' nodes'],
-          ['fa-arrow-right-arrow-left', recorded + ' recorded relationships'],
-          ['fa-wand-magic-sparkles', inferred + ' inferred links'],
-          ['fa-object-group', merged + ' entities resolved across records']
-        ].map(([i, t]) => `<span class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-2 py-0.5 rounded-full"><i class="fa-solid ${i} text-[#A60E0D]"></i>${esc(t)}</span>`).join('');
+        const chip = ([i, t]) => `<span class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-2 py-0.5 rounded-full"><i class="fa-solid ${i} text-[#A60E0D]"></i>${esc(t)}</span>`;
+        if (sample) {
+          const count = t => KG.nodes.filter(n => n.type === t).length;
+          document.getElementById('kg-ingest').innerHTML = `<span class="demo-pill">${esc(M.dataLabel)}</span>` + (KG.nodes.length ? [
+            ['fa-file-lines', count('Project') + ' sample procurements'],
+            ['fa-truck-ramp-box', count('Supplier') + ' sample suppliers'],
+            ['fa-circle-nodes', KG.nodes.length + ' sample nodes'],
+            ['fa-arrow-right-arrow-left', recorded + ' recorded relationships (sample)'],
+            ['fa-wand-magic-sparkles', inferred + ' inferred links (sample)']
+          ].map(chip).join('') : '');
+        } else {
+          document.getElementById('kg-ingest').innerHTML = [
+            ['fa-file-lines', PHILGEPS_ABSTRACTS.length + ' award abstracts from other agencies (reference)'],
+            ['fa-circle-nodes', KG.nodes.length + ' nodes'],
+            ['fa-arrow-right-arrow-left', recorded + ' recorded relationships'],
+            ['fa-wand-magic-sparkles', inferred + ' inferred links'],
+            ['fa-object-group', merged + ' entities resolved across records']
+          ].map(chip).join('');
+        }
 
-        document.getElementById('kg-query-list').innerHTML = KG_QUERIES.map(q => `
+        // Preset queries for this graph
+        document.getElementById('kg-query-list').innerHTML = this.kgQueries().map(q => `
           <button type="button" data-query="${q.id}" class="kg-query text-left border border-gray-200 hover:border-[#A60E0D] hover:bg-red-50/40 rounded-lg px-3 py-2 transition cursor-pointer flex items-start gap-2 min-w-0">
             <i class="fa-solid ${q.icon} text-[#A60E0D] mt-0.5 text-xs shrink-0"></i>
             <span class="text-[11px] font-semibold text-gray-800 leading-snug">${esc(q.title)}</span>
           </button>`).join('');
+      }
 
-        this.syncViewTabs();
-        this.renderKGSnapshot();
-        this.renderKG();
-        this.renderInspectorOverview();
+      // Message over the canvas when the sample graph is not available (loading, error, signed out, nothing to trace).
+      renderKGStatus() {
+        const box = document.getElementById('kg-status');
+        if (!box) return;
+        let msg = null, retry = false;
+        if (this.kgMode === 'sample') {
+          const st = this._sampleState;
+          if (st === 'loading') msg = 'Loading the sample graph...';
+          else if (st === 'error') { msg = 'The sample graph could not be loaded.'; retry = true; }
+          else if (st !== 'loaded') msg = 'Sign in as BAC staff to load the sample graph.';
+          else if (!KG.nodes.length) msg = 'No sample records are available.';
+          else if (this.kgView === 'trail' && !this.sampleTrailAward) msg = 'No sample award notice to trace.';
+        }
+        box.classList.toggle('hidden', !msg);
+        box.classList.toggle('flex', !!msg);
+        box.innerHTML = msg ? `<div class="pointer-events-auto bg-white/95 border border-amber-200 shadow-sm rounded-lg px-4 py-3 text-xs text-gray-700 flex flex-wrap items-center gap-2 max-w-md">
+            <span class="demo-pill">Sample Data</span><span>${esc(msg)}</span>
+            ${retry ? '<button type="button" onclick="window.workspaceManager.loadSampleGraph()" class="font-semibold text-[#A60E0D] underline cursor-pointer">Try again</button>' : ''}
+          </div>` : '';
+      }
+
+      // GET /api/graph/sample - signed-in staff only. The page accepts sample records only.
+      async loadSampleGraph() {
+        if (!this.roleKey || this.roleKey === 'public') return;
+        const request = ++this._sampleRequest;
+        this._sampleState = 'loading';
+        if (this.kgMode === 'sample') this.renderKGStatus();
+        let response, result;
+        try {
+          response = await fetch('/api/graph/sample', { credentials: 'same-origin' });
+          result = await response.json().catch(() => ({}));
+        } catch (error) {
+          if (request !== this._sampleRequest) return;
+          console.error('Failed to load the sample graph:', error);
+          this._sampleState = 'error';
+          if (this.kgMode === 'sample') this.renderKGStatus();
+          return;
+        }
+        if (request !== this._sampleRequest) return;
+        if (response.status === 401) {
+          this.handleSessionExpired(result.message || 'Your session expired. Please sign in again.');
+          return;
+        }
+        const sampleOnly = Array.isArray(result.dataSources) && result.dataSources.length === 1 && result.dataSources[0] === 'sample';
+        if (!response.ok || result.status !== 'success' || !sampleOnly || !Array.isArray(result.procurements)) {
+          console.info('Sample graph not loaded (HTTP ' + response.status + ').');
+          this._sampleState = 'error';
+          if (this.kgMode === 'sample') this.renderKGStatus();
+          return;
+        }
+        try {
+          this.sampleKG = buildSampleCityGraph(result);
+          this.sampleLayouts = { graph: computeSampleLayout(this.sampleKG), suppliers: computeSampleSupplierLayout(this.sampleKG) };
+        } catch (error) {
+          console.error('Could not build the sample graph:', error);
+          this.sampleKG = null; this.sampleLayouts = null;
+          this._sampleState = 'error';
+          if (this.kgMode === 'sample') this.renderKGStatus();
+          return;
+        }
+        this._sampleTrailCache = {};
+        this.sampleTrailAward = null;
+        this._sampleState = 'loaded';
+        console.log('Sample graph loaded:', this.sampleKG.nodes.length, 'nodes');
+        if (this.kgMode === 'sample') this.activateKGMode('sample');
+      }
+
+      // Audit Trail Lens for one sample award: entity -> procurement -> resolution -> award -> contract -> supplier -> representative.
+      sampleTrailData(aid) {
+        if (!aid || !KG.byId[aid]) return emptyKGLayout();
+        if (this._sampleTrailCache[aid]) return this._sampleTrailCache[aid];
+        const an = KG.byId[aid];
+        const pj = nbOut(aid, 'FOR_PROJECT')[0];
+        const ag = pj ? nbOut(pj.id, 'PROCURED_BY') : [];
+        const res = pj ? nbIn(pj.id, 'RESOLVES') : [];
+        const cts = nbOut(aid, 'FORMALIZED_AS');
+        const sups = nbOut(aid, 'AWARDED_TO');
+        const reps = uniqNodes(sups.flatMap(s => nbOut(s.id, 'REPRESENTED_BY')));
+        const others = pj ? nbIn(pj.id, 'BID_ON').filter(s => !sups.some(x => x.id === s.id)) : [];
+        const cats = pj ? nbOut(pj.id, 'CLASSIFIED_AS') : [], modes = pj ? nbOut(pj.id, 'CONDUCTED_VIA') : [];
+        const certs = nbOut(aid, 'CERTIFIED_BY');
+        const pos = {}, MAIN = 190, SUB = 410;
+        const col = (list, x, y, gap) => list.forEach((n, i) => { pos[n.id] = { x, y: y + (i - (list.length - 1) / 2) * gap }; });
+        col(ag, 90, MAIN, 130); col(pj ? [pj] : [], 270, MAIN, 0); col(res, 450, MAIN, 130); col([an], 630, MAIN, 0);
+        col(cts, 810, MAIN, 130); col(sups, 990, MAIN, 130); col(reps, 1170, MAIN, 130);
+        col(cats, 120, SUB, 0); col(modes, 260, SUB, 0); col(certs, 400, SUB, 0);
+        others.forEach((s, i) => { pos[s.id] = { x: 560 + i * 160, y: SUB }; });
+        const nodes = [...ag, ...(pj ? [pj] : []), ...res, an, ...cts, ...sups, ...reps, ...cats, ...modes, ...certs, ...others];
+        const ids = new Set(nodes.map(n => n.id));
+        const edges = KG.edges.filter(e => e.provenance !== 'Inferred' && ids.has(e.from) && ids.has(e.to));
+        const heads = [[90, 'Procuring Entity'], [270, 'Sample Procurement'], [450, 'BAC Resolution'], [630, 'Award Notice'], [810, 'Contract'], [990, 'Awarded Supplier'], [1170, 'Representative']];
+        const W = Math.max(1260, 560 + others.length * 160 + 80);
+        const decor = [{ x: 20, y: 26, text: 'SAMPLE DATA · fictional demonstration records', size: 10, weight: 800, fill: '#92400e', anchor: 'start' }]
+          .concat(heads.map(([x], i) => ({ x, y: 50, text: 'STEP ' + (i + 1), size: 10, weight: 800, fill: '#A60E0D' })))
+          .concat(heads.map(([x, t]) => ({ x, y: 68, text: t, size: 12, weight: 700, fill: '#1f2937' })))
+          .concat(cts.length ? [] : [{ x: 810, y: MAIN + 4, text: '(none recorded)', size: 11, weight: 600, fill: '#94a3b8' }])
+          .concat(res.length ? [] : [{ x: 450, y: MAIN + 4, text: '(none recorded)', size: 11, weight: 600, fill: '#94a3b8' }])
+          .concat([{ x: 20, y: 340, text: 'ATTRIBUTES AND OTHER BIDDERS', size: 10, weight: 800, fill: '#64748b', anchor: 'start' }])
+          .concat([{ line: true, x1: 20, y1: 325, x2: W - 20, y2: 325 }]);
+        const data = { nodes, edges, pos, halos: [], decor, vb: { x: 0, y: 10, w: W, h: 510 }, allLabels: true };
+        this._sampleTrailCache[aid] = data;
+        return data;
+      }
+
+      // CSV extract of the Sample City Graph, labelled as sample data (separate from the PhilGEPS reference extract).
+      exportSampleGraph() {
+        const G = this.sampleKG;
+        if (!G || this._sampleState !== 'loaded') {
+          this.showToast('The sample graph is not loaded yet. Open the Supplier Network page and try again.', 'warn');
+          return;
+        }
+        const M = G.meta;
+        const rows = [['SAMPLE DATA: ' + (M.notice || 'Fictional sample procurement records for demonstration only. They are not Santa Rosa City procurement records and not PhilGEPS reference data.')],
+          ['Data source: sample (' + M.dataLabel + ')'], [],
+          ['NODES'], ['Node ID', 'Type', 'Label', 'Properties', 'Sample procurements']];
+        G.nodes.forEach(n => rows.push([n.id, n.type, n.label,
+          Object.keys(n.props).map(k => k + ': ' + (Array.isArray(n.props[k]) ? n.props[k].join(' / ') : n.props[k])).join(' | '),
+          n.records.join(' ')]));
+        rows.push([]);
+        rows.push(['RELATIONSHIPS']);
+        rows.push(['Edge ID', 'From', 'Relationship', 'To', 'Provenance', 'Properties']);
+        G.edges.forEach(e => rows.push([e.id, G.byId[e.from].label, e.type, G.byId[e.to].label, e.provenance === 'Inferred' ? 'Inferred: ' + e.rule : 'Sample record',
+          Object.keys(e.props || {}).map(k => k + ': ' + e.props[k]).join(' | ')]));
+        this.downloadCSV('Sample_City_Knowledge_Graph.csv', rows);
+        this.showToast('Sample graph exported (' + G.nodes.length + ' nodes, ' + G.edges.length + ' relationships; ' + M.dataLabel + ', fictional records).', 'ok');
       }
 
       bindGraphEvents() {
         const svg = document.getElementById('kg-svg');
 
         document.querySelectorAll('.kg-view').forEach(b => b.addEventListener('click', () => this.switchKGView(b.getAttribute('data-view'))));
+        document.querySelectorAll('.kg-mode').forEach(b => b.addEventListener('click', () => this.activateKGMode(b.getAttribute('data-kg-mode'))));
         document.querySelectorAll('[data-layer]').forEach(cb => cb.addEventListener('change', () => {
           this.kgLayers[cb.getAttribute('data-layer')] = cb.checked;
           this.renderKG();
         }));
         document.getElementById('kg-focus').addEventListener('change', e => { this.kgFocus = Number(e.target.value); this.renderKG(); });
         document.getElementById('kg-trail-select').addEventListener('change', e => {
-          this.trailContract = e.target.value; this.kgT = { k: 1, x: 0, y: 0 }; this.kgSel = null; this.renderKG(); this.renderInspectorOverview();
+          if (this.kgMode === 'sample') this.sampleTrailAward = e.target.value; else this.trailContract = e.target.value;
+          this.kgT = { k: 1, x: 0, y: 0 }; this.kgSel = null; this.renderKG(); this.renderInspectorOverview();
         });
         document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => this.zoomKG(b.getAttribute('data-zoom'))));
         document.getElementById('kg-query-list').addEventListener('click', e => {
@@ -2239,7 +2813,7 @@
 
       kgViewData() {
         if (this.kgView === 'suppliers') return this.layouts.suppliers;
-        if (this.kgView === 'trail') return this.trailData(this.trailContract);
+        if (this.kgView === 'trail') return this.kgMode === 'sample' ? this.sampleTrailData(this.sampleTrailAward) : this.trailData(this.trailContract);
         const L = this.layouts.graph, lay = this.kgLayers;
         const vis = n => !LAYER_OF[n.type] || lay[LAYER_OF[n.type]];
         const nodes = L.nodes.filter(vis);
@@ -2358,6 +2932,7 @@
             let txt = e.type;
             if (e.type === 'SUPPLIES_TO') txt += ' · ' + e.props.awards + ' · ' + pesoShort(e.props.total);
             if (e.type === 'CO_LOCATED_WITH') txt += ' · ' + e.props.city;
+            if (e.type === 'BIDS_TO') txt += ' · ' + e.props.bids + ' bid' + (e.props.bids === 1 ? '' : 's') + (e.props.awards ? ' · ' + e.props.awards + ' award · ' + pesoShort(e.props.total) : '');
             labels.push({ x: (x1 + x2) / 2, y: (y1 + y2) / 2, txt, stroke, inferred, dim: !inFocus });
           }
         });
@@ -2389,6 +2964,7 @@
         });
         s += `</g>`;
         svg.innerHTML = s;
+        this.renderKGStatus();
       }
 
       selectKG(id, opts) {
@@ -2414,6 +2990,7 @@
 
       /* ----- Inspector ----- */
       kgFacts(n) {
+        if (KG.meta && KG.meta.mode === 'sample') return this.sampleKgFacts(n);
         const P = n.props, f = [];
         const names = arr => arr.map(x => x.label).join('; ') || '—';
         if (n.type === 'Agency') {
@@ -2487,7 +3064,88 @@
         return f;
       }
 
+      // Facts shown for a Sample City Graph node (sample database records).
+      sampleKgFacts(n) {
+        const P = n.props, f = [];
+        const names = arr => arr.map(x => nodeLabel(x)).join('; ') || '—';
+        const sum = arr => arr.reduce((t, a) => t + (a.props.amount || 0), 0);
+        if (n.type === 'Agency') {
+          const pjs = nbIn(n.id, 'PROCURED_BY');
+          const ans = pjs.flatMap(p => nbIn(p.id, 'FOR_PROJECT'));
+          f.push(['Location', [P.city, P.province].filter(Boolean).join(', ') || '—']);
+          f.push(['Sample procurements', String(pjs.length)]);
+          f.push(['Suppliers that bid', String(uniqNodes(pjs.flatMap(p => nbIn(p.id, 'BID_ON'))).length)]);
+          f.push(['Award notices', String(ans.length)]);
+          f.push(['Total awarded', peso(sum(ans))]);
+          f.push(['Awarded suppliers', names(uniqNodes(ans.flatMap(a => nbOut(a.id, 'AWARDED_TO'))))]);
+        } else if (n.type === 'Supplier') {
+          const bids = KG.out[n.id].filter(e => e.type === 'BID_ON');
+          const rec = nbIn(n.id, 'RECOMMENDS'), ans = nbIn(n.id, 'AWARDED_TO');
+          const rep = KG.out[n.id].find(e => e.type === 'REPRESENTED_BY');
+          f.push(['Address', P.address || '—']);
+          f.push(['Representative', rep ? KG.byId[rep.to].label + (rep.props.position ? ' (' + rep.props.position + ')' : '') : '—']);
+          f.push(['Bids', bids.length + (bids.length ? ' — ' + bids.map(e => KG.byId[e.to].props.referenceNo).join('; ') : '')]);
+          f.push(['Recommended in resolutions', String(rec.length)]);
+          f.push(['Award notices', String(ans.length)]);
+          f.push(['Total awarded', ans.length ? peso(sum(ans)) : '—']);
+        } else if (n.type === 'Project') {
+          const bids = KG.in[n.id].filter(e => e.type === 'BID_ON');
+          f.push(['Reference No.', P.referenceNo]);
+          f.push(['Stage', P.status]);
+          f.push(['End-user unit', P.unit || '—']);
+          f.push(['Procurement class', P.procurementClass || '—']);
+          f.push(['Category', names(nbOut(n.id, 'CLASSIFIED_AS'))]);
+          f.push(['Procurement mode', names(nbOut(n.id, 'CONDUCTED_VIA'))]);
+          f.push(['ABC', peso(P.abc)]);
+          f.push(['Bids recorded', String(bids.length)]);
+          f.push(['BAC resolution', names(nbIn(n.id, 'RESOLVES'))]);
+          f.push(['Award notice', names(nbIn(n.id, 'FOR_PROJECT'))]);
+        } else if (n.type === 'Resolution') {
+          const e = KG.out[n.id].find(x => x.type === 'RECOMMENDS');
+          f.push(['Resolution No.', P.resolutionNo]);
+          f.push(['Recommendation', SAMPLE_BASIS[P.recommendation] || P.recommendation]);
+          f.push(['Resolution date', P.date ? fmtD(P.date) : '—']);
+          f.push(['Post-qualification', P.postQualification]);
+          f.push(['Procurement', names(nbOut(n.id, 'RESOLVES'))]);
+          f.push(['Recommended supplier', e ? KG.byId[e.to].label : '— (no bid recommended)']);
+          if (e) f.push(['Recommended bid', peso(e.props.amount) + (e.props.rank !== '' ? ' (rank ' + e.props.rank + ')' : '')]);
+        } else if (n.type === 'AwardNotice') {
+          const pj = nbOut(n.id, 'FOR_PROJECT')[0], ag = pj && nbOut(pj.id, 'PROCURED_BY')[0];
+          f.push(['Notice of Award No.', P.noticeNo]);
+          f.push(['Award date', P.awardDate ? fmtD(P.awardDate) : '—']);
+          f.push(['Awarded amount', peso(P.amount)]);
+          if (P.basis) f.push(['Basis for award', P.basis]);
+          f.push(['Procurement', pj ? pj.props.referenceNo : '—']);
+          f.push(['Procuring entity', ag ? ag.label : '—']);
+          f.push(['Supplier', names(nbOut(n.id, 'AWARDED_TO'))]);
+          f.push(['Contract', names(nbOut(n.id, 'FORMALIZED_AS'))]);
+          f.push(['Certified by', nbOut(n.id, 'CERTIFIED_BY').length ? names(nbOut(n.id, 'CERTIFIED_BY')) : 'Not recorded']);
+        } else if (n.type === 'Contract') {
+          const ans = nbIn(n.id, 'FORMALIZED_AS');
+          f.push(['Contract No.', P.contractNo]);
+          f.push(['Award notices covered', ans.map(a => a.props.noticeNo).join('; ')]);
+          f.push(['Contract amount', peso(P.amount)]);
+          f.push(['Supplier', names(uniqNodes(ans.flatMap(a => nbOut(a.id, 'AWARDED_TO'))))]);
+        } else if (n.type === 'Person') {
+          f.push(['Roles on record', (P.roles || []).join('; ') || '—']);
+          const reps = nbIn(n.id, 'REPRESENTED_BY');
+          if (reps.length) f.push(['Represents', names(reps)]);
+          const certified = nbIn(n.id, 'CERTIFIED_BY');
+          if (certified.length) f.push(['Certified awards', certified.map(a => a.props.noticeNo).join('; ')]);
+        } else if (n.type === 'Category' || n.type === 'Mode') {
+          const pjs = nbIn(n.id, n.type === 'Category' ? 'CLASSIFIED_AS' : 'CONDUCTED_VIA');
+          f.push(['Sample procurements', pjs.length + ' — ' + names(pjs)]);
+          f.push(['Total awarded', peso(pjs.reduce((t, p) => t + (p.props.awarded || 0), 0))]);
+        } else if (n.type === 'Location') {
+          f.push(['Province / region', P.province || '—']);
+          f.push(['Entities located here', names(nbIn(n.id, 'LOCATED_IN'))]);
+        }
+        f.push(['Data source', 'sample (' + KG.meta.dataLabel + ')']);
+        return f;
+      }
+
       kgBudget(n) {
+        if (n.type === 'Project' && KG.meta && KG.meta.mode === 'sample' && !n.props.awarded) return null;   // sample: not awarded yet
         if (n.type === 'Project') return { abc: n.props.abc, amount: n.props.awarded, label: 'Total awarded' };
         if (n.type === 'Contract') {
           const an = nbIn(n.id, 'FORMALIZED_AS')[0]; const pj = an && agencyOfNotice(an).pj;
@@ -2517,7 +3175,8 @@
         const T = NODE_TYPES[n.type];
         const facts = this.kgFacts(n);
         const budget = this.kgBudget(n);
-        const sourceNos = [...new Set(n.records.map(ri => PHILGEPS_ABSTRACTS[ri].noticeNo))];
+        const M = KG.meta;
+        const sourceNos = [...new Set(n.records.map(ri => M.recordLabel(ri)))];
 
         const groups = {};
         KG.out[n.id].forEach(e => { const k = e.type + ' →'; (groups[k] = groups[k] || { inferred: e.provenance === 'Inferred', items: [] }).items.push(KG.byId[e.to]); });
@@ -2534,7 +3193,7 @@
                 <span id="inspect-type" class="text-[10px] font-bold px-2 py-0.5 rounded border" style="color:${T.color};border-color:${T.color}55;background:${T.color}12">${esc(T.label)}</span>
                 <span class="text-[10px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded">:${esc(n.type)}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded border text-slate-700 bg-slate-50 border-slate-200">${degree} recorded link${degree === 1 ? '' : 's'}</span>
-                ${n.records.length > 1 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded border text-[#7a0908] bg-[#F2E503]/40 border-[#e5d400]">Resolved from ${n.records.length} records</span>` : ''}
+                ${n.records.length > 1 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded border text-[#7a0908] bg-[#F2E503]/40 border-[#e5d400]">${esc(M.mergedBadge(n.records.length))}</span>` : ''}${M.nodeBadge}
               </div>
             </div>
           </div>
@@ -2542,7 +3201,7 @@
             <div class="min-w-0">
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Properties</h4>
               <div class="divide-y divide-gray-100">${facts.map(([k, v]) => this.inspectorRow(k, v)).join('')}</div>
-              <div class="text-[10px] text-gray-500 mt-2">Source notices: <span class="font-mono text-gray-700">${esc(sourceNos.join(', '))}</span></div>
+              <div class="text-[10px] text-gray-500 mt-2">${esc(M.sourceHeading)}: <span class="font-mono text-gray-700">${esc(sourceNos.join(', '))}</span></div>
             </div>
             <div class="min-w-0">`;
         if (budget) {
@@ -2570,7 +3229,7 @@
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100">
             <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">What this node means in the graph</h4>
-            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(NODE_SUMMARY[n.type])}</p>
+            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(M.nodeSummary[n.type] || '')}</p>
           </div>`;
         document.getElementById('inspector-body').innerHTML = html;
       }
@@ -2583,7 +3242,8 @@
           if (k === 'amount' || k === 'total') v = peso(v);
           return [k, v];
         });
-        const sourceNos = [...new Set((e.records || []).map(ri => PHILGEPS_ABSTRACTS[ri].noticeNo))];
+        const M = KG.meta;
+        const sourceNos = [...new Set((e.records || []).map(ri => M.recordLabel(ri)))];
         document.getElementById('inspector-body').innerHTML = `
           <div class="flex items-start gap-3">
             <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0" style="background:${inferred ? '#d97706' : '#475569'}"><i class="fa-solid fa-arrow-right-long"></i></div>
@@ -2591,7 +3251,7 @@
               <div id="inspect-title" class="font-bold text-gray-900 text-sm font-mono break-words">${esc(e.type)}</div>
               <div class="mt-1.5 flex flex-wrap gap-1.5">
                 <span id="inspect-type" class="text-[10px] font-bold px-2 py-0.5 rounded border text-slate-700 bg-slate-50 border-slate-200">Relationship</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${inferred ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}">${inferred ? 'Inferred by rule' : 'Recorded on PhilGEPS abstract'}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${inferred ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}">${inferred ? 'Inferred by rule' : esc(M.recordedTag)}</span>${M.nodeBadge}
               </div>
             </div>
           </div>
@@ -2601,17 +3261,17 @@
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Edge properties</h4>
               <div class="divide-y divide-gray-100">
                 ${props.length ? props.map(([k, v]) => this.inspectorRow(k, v)).join('') : '<div class="py-1.5 text-gray-400">No properties</div>'}
-                ${sourceNos.length ? this.inspectorRow('Source notices', sourceNos.join(', ')) : ''}
+                ${sourceNos.length ? this.inspectorRow(M.sourceHeading, sourceNos.join(', ')) : ''}
               </div>
             </div>
             <div class="min-w-0">
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Provenance</h4>
-              ${inferred ? `<pre class="text-[10px] bg-gray-900 text-amber-200 rounded-lg p-2.5 overflow-x-auto thin-scroll whitespace-pre">${esc(e.rule)}</pre>` : '<p class="text-gray-600">Taken directly from the award notice abstract during ingestion.</p>'}
+              ${inferred ? `<pre class="text-[10px] bg-gray-900 text-amber-200 rounded-lg p-2.5 overflow-x-auto thin-scroll whitespace-pre">${esc(e.rule)}</pre>` : '<p class="text-gray-600">' + esc(M.recordedText) + '</p>'}
             </div>
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100">
             <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">What this relationship means</h4>
-            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(EDGE_INFO[e.type] || '')}</p>
+            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(M.edgeInfo[e.type] || EDGE_INFO[e.type] || '')}</p>
           </div>`;
       }
 
@@ -2621,8 +3281,9 @@
         const merged = KG.nodes.filter(n => n.records.length > 1).sort((a, b) => b.records.length - a.records.length);
         const relCounts = {};
         KG.edges.forEach(e => { relCounts[e.type] = (relCounts[e.type] || 0) + 1; });
+        const M = KG.meta;
         document.getElementById('inspector-body').innerHTML = `
-          <p class="text-xs text-gray-600 mb-4">Click any node or relationship to inspect it. Nodes with a gold badge were named in more than one abstract and have been resolved into a single entity; these shared nodes are what connect separate procurements.</p>
+          <p class="text-xs text-gray-600 mb-4">${esc(M.overviewIntro)}${M.nodeBadge ? ' ' + M.nodeBadge : ''}</p>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-xs">
             <div class="min-w-0">
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Node types</h4>
@@ -2631,16 +3292,16 @@
               <div class="divide-y divide-gray-100">${Object.keys(relCounts).map(t => this.inspectorRow(':' + t, String(relCounts[t]))).join('')}</div>
             </div>
             <div class="min-w-0">
-              <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Entities resolved across records</h4>
+              <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">${esc(M.mergedHeading)}</h4>
               <div class="flex flex-wrap gap-1.5">${merged.map(n => this.chip(n)).join('')}</div>
-              <p class="text-[11px] text-gray-500 mt-3 leading-relaxed">Names are normalized (case, punctuation, suffixes such as "Inc." or "Corp.") before matching. Procurement modes are mapped to one canonical node, so "Public Bidding" and "Competitive Public Bidding" become the same mode.</p>
+              <p class="text-[11px] text-gray-500 mt-3 leading-relaxed">${esc(M.overviewNote)}</p>
             </div>
           </div>`;
       }
 
       /* ----- Queries & search ----- */
       runQuery(qid) {
-        const q = KG_QUERIES.find(x => x.id === qid); if (!q) return;
+        const q = this.kgQueries().find(x => x.id === qid); if (!q) return;
         if (this.kgView !== 'graph') { this.kgView = 'graph'; this.syncViewTabs(); }
         Object.keys(q.layers || {}).forEach(l => this.setLayer(l, q.layers[l]));
         const res = q.run();
@@ -2660,7 +3321,7 @@
               <button type="button" onclick="window.workspaceManager.clearSearch()" class="text-[10px] font-semibold text-gray-500 hover:text-[#A60E0D] shrink-0 cursor-pointer">Clear</button>
             </div>
             <p class="text-[11px] text-gray-700 bg-amber-50/60 border border-amber-200 rounded-lg p-2.5 leading-relaxed">${esc(res.finding)}</p>
-            <pre class="text-[10px] leading-relaxed bg-gray-900 text-emerald-200 rounded-lg p-3 overflow-x-auto thin-scroll whitespace-pre">${esc(q.cypher)}</pre>
+            ${KG.meta.cypherCaption ? `<p class="text-[10px] text-gray-500 -mb-2"><span class="demo-pill mr-1">${esc(KG.meta.dataLabel)}</span>${esc(KG.meta.cypherCaption)}</p>` : ''}<pre class="text-[10px] leading-relaxed bg-gray-900 text-emerald-200 rounded-lg p-3 overflow-x-auto thin-scroll whitespace-pre">${esc(q.cypher)}</pre>
             <div class="overflow-x-auto thin-scroll border border-gray-200 rounded-lg">
               <table class="w-full min-w-[420px] text-left text-[11px] text-gray-600">
                 <thead class="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500"><tr>${res.cols.map(c => `<th class="px-2.5 py-2 whitespace-nowrap">${esc(c)}</th>`).join('')}</tr></thead>
@@ -2694,7 +3355,7 @@
         this.kgQuery = null;
         document.getElementById('kg-query-result').innerHTML = '';
         document.querySelectorAll('.kg-query').forEach(b => b.classList.remove('border-[#A60E0D]', 'bg-red-50'));
-        const order = ['Supplier', 'Agency', 'Person', 'Project', 'AwardNotice', 'Contract', 'Category', 'Mode', 'Location'];
+        const order = ['Supplier', 'Agency', 'Person', 'Project', 'Resolution', 'AwardNotice', 'Contract', 'Category', 'Mode', 'Location'];
         hits.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
         this.kgView = 'graph';
         this.renderKG();
@@ -3942,16 +4603,16 @@
       exportGraph() {
         const rows = [['REFERENCE DATA: public PhilGEPS award notice abstracts from other government agencies. These are NOT Santa Rosa City procurement records.'], [],
           ['NODES'], ['Node ID', 'Type', 'Label', 'Properties', 'Source notices']];
-        KG.nodes.forEach(n => rows.push([n.id, n.type, n.label,
+        REF_KG.nodes.forEach(n => rows.push([n.id, n.type, n.label,
           Object.keys(n.props).map(k => k + ': ' + (Array.isArray(n.props[k]) ? n.props[k].join(' / ') : n.props[k])).join(' | '),
           [...new Set(n.records.map(ri => PHILGEPS_ABSTRACTS[ri].noticeNo))].join(' ')]));
         rows.push([]);
         rows.push(['RELATIONSHIPS']);
         rows.push(['Edge ID', 'From', 'Relationship', 'To', 'Provenance', 'Properties']);
-        KG.edges.forEach(e => rows.push([e.id, KG.byId[e.from].label, e.type, KG.byId[e.to].label, e.provenance === 'Inferred' ? 'Inferred: ' + e.rule : 'PhilGEPS abstract',
+        REF_KG.edges.forEach(e => rows.push([e.id, REF_KG.byId[e.from].label, e.type, REF_KG.byId[e.to].label, e.provenance === 'Inferred' ? 'Inferred: ' + e.rule : 'PhilGEPS abstract',
           Object.keys(e.props || {}).map(k => k + ': ' + e.props[k]).join(' | ')]));
         this.downloadCSV('PhilGEPS_Reference_Knowledge_Graph.csv', rows);
-        this.showToast('Reference graph extract exported (' + KG.nodes.length + ' nodes, ' + KG.edges.length + ' relationships; other agencies, not City records).', 'ok');
+        this.showToast('Reference graph extract exported (' + REF_KG.nodes.length + ' nodes, ' + REF_KG.edges.length + ' relationships; other agencies, not City records).', 'ok');
       }
       async exportActivity() {
         try {
