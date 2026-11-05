@@ -16,8 +16,8 @@ BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
 FRONTEND_FILE = "proctest19.html"
 
-# All database work must stay on the test database for now.
-EXPECTED_DATABASE = "procurement_db_test"
+# All database work must stay on the isolated frontend test database for now.
+EXPECTED_DATABASE = "procurement_db_frontend_test"
 
 
 def _load_secret_key():
@@ -48,6 +48,7 @@ app.register_blueprint(procurement_bp)   # Phase 3: /api/procurements/<reference
 @app.route("/")
 def index():
     return send_from_directory(PROJECT_DIR, FRONTEND_FILE)
+
 
 
 # API root
@@ -139,6 +140,53 @@ def get_procurements():
         if connection is not None:
             connection.close()
 
+# INTERNAL activity log (READ-ONLY): signed-in BAC staff only.
+@app.route("/api/activity-log")
+@require_role(*STAFF_ROLES)
+def get_activity_log():
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT actor_label, action, detail, created_at
+            FROM activity_log
+            ORDER BY created_at DESC, log_id DESC
+        """)
+
+        records = []
+        for row in cursor.fetchall():
+            records.append({
+                "timestamp": (
+                    row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                    if row["created_at"] else ""
+                ),
+                "actor": row["actor_label"] or "",
+                "event": row["action"] or "",
+                "detail": row["detail"] or ""
+            })
+
+        return jsonify({
+            "status": "success",
+            "count": len(records),
+            "records": records
+        })
+
+    except Exception:
+        app.logger.exception("Failed to load the database activity log")
+        return jsonify({
+            "status": "error",
+            "message": "Could not load the saved activity log."
+        }), 500
+
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None:
+            connection.close()
 
 # PUBLIC procurement registry (READ-ONLY, no login): only published records
 # and only the fields approved for public viewing (see public_registry.py).

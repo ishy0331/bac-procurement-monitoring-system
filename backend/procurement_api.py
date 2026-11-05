@@ -1,12 +1,21 @@
 """
 backend/procurement_api.py - Phase 3: procurement records API.
 
-STEP 3A (this version): Step 1 + Step 2 + update a procurement.
+ARCHIVE STAGE (this version): Step 1 + Step 2 + Step 3A + soft deletion (archive / restore).
 
-    GET  /api/procurements/<reference>   one City procurement record (all staff)       [Step 1]
-    POST /api/procurements               create a Pre-Procurement record (Secretariat) [Step 2]
-    PUT  /api/procurements/<reference>   edit an encoded Pre-Procurement record         [Step 3A]
-                                         (Secretariat; needs expectedVersion from GET)
+    GET  /api/procurements/<reference>          one City procurement record (all staff)       [Step 1]
+    POST /api/procurements                      create a Pre-Procurement record (Secretariat) [Step 2]
+    PUT  /api/procurements/<reference>          edit an encoded Pre-Procurement record         [Step 3A]
+                                                (Secretariat; needs expectedVersion from GET)
+    POST /api/procurements/<reference>/archive  archive (soft-delete) an eligible draft        [Archive]
+                                                (Secretariat; reason + expectedVersion)
+    GET  /api/archived-procurements             archived records (Secretariat, Administrator)  [Archive]
+    POST /api/procurements/<reference>/restore  restore an archived record                     [Archive]
+                                                (Secretariat, Administrator; expectedVersion)
+
+Archived records stay in the procurements table (archived_at / archived_by set) and are hidden
+from every normal read: this module's GET, registry.py and public_registry.py. Nothing is ever
+physically deleted. The archive reason is stored in activity_log only.
 
 (GET /api/procurements - the list - stays in app.py, unchanged.)
 
@@ -245,6 +254,7 @@ SELECT
     p.updated_by,
     p.mode_id,
     p.data_source,
+    p.archived_at,
     m.name   AS mode_name,
     c.name   AS category_name,
     pe.name  AS entity_name,
@@ -262,6 +272,7 @@ LEFT JOIN users cu         ON cu.user_id = p.created_by
 LEFT JOIN users uu         ON uu.user_id = p.updated_by
 WHERE p.reference_no = %s
   AND p.data_source IN ('sample', 'encoded')
+  AND p.archived_at IS NULL
 """
 
 
@@ -294,6 +305,8 @@ def record_version(row):
         row.get("mode_id"), f"{Decimal(str(abc)):.2f}" if abc is not None else None,
         row.get("target_timeline"), row.get("status"), row.get("updated_by"), _iso(row.get("updated_at")),
     ]
+    if row.get("archived_at") is not None:          # archiving / restoring always changes the token
+        parts.append("archived:" + _iso(row.get("archived_at")))
     text = "\x1f".join("" if v is None else str(v) for v in parts)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -309,7 +322,7 @@ def detail_to_json(row, role):
     # sample records stay protected.
     can_edit = (role == "secretariat" and row["status"] == PRE_PROCUREMENT
                 and row.get("data_source") == "encoded")
-    can_delete = can_edit and not any(counts.values())
+    can_delete = can_edit and not any(counts.values())      # = archivable (soft delete)
     return {
         "id": row["reference_no"],                 # the reference number (not the database ID)
         "title": row["title"],
@@ -329,6 +342,7 @@ def detail_to_json(row, role):
         "counts": counts,
         "canEdit": can_edit,
         "canDelete": can_delete,
+        "canArchive": can_delete,
         "version": record_version(row),            # send back as expectedVersion when editing
     }
 
@@ -483,7 +497,7 @@ def _create_in_transaction(cur, cleaned):
 
     # Non-blocking warning: same title already in the City registry
     cur.execute("SELECT reference_no FROM procurements WHERE data_source IN ('sample', 'encoded') "
-                "AND title = %s ORDER BY procurement_id LIMIT 5", (cleaned["title"],))
+                "AND archived_at IS NULL AND title = %s ORDER BY procurement_id LIMIT 5", (cleaned["title"],))
     duplicates = [r["reference_no"] for r in cur.fetchall()]
 
     # 7. The procurement itself - status, source, year and creator set by the server
@@ -567,7 +581,7 @@ EDIT_LABELS = {"title": "Title", "unit": "End-user unit", "category": "Category"
 
 EDIT_ROW_SQL = ("SELECT p.procurement_id, p.reference_no, p.title, p.end_user_unit, p.procurement_class, "
                 "p.mode_id, m.name AS mode_name, p.abc, p.target_timeline, p.status, p.data_source, "
-                "p.updated_by, p.updated_at "
+                "p.updated_by, p.updated_at, p.archived_at "
                 "FROM procurements p JOIN procurement_modes m ON m.mode_id = p.mode_id "
                 "WHERE p.procurement_id = %s")
 
@@ -605,6 +619,9 @@ def _update_in_transaction(cur, reference, cleaned, expected):
     cur.execute(EDIT_ROW_SQL, (locked["procurement_id"],))
     row = cur.fetchone()
 
+    if row["archived_at"] is not None:
+        raise ApiError("This record is archived and cannot be edited. Restore it first. Nothing was saved.",
+                       409, code="archived")
     if row["data_source"] != "encoded":
         raise ApiError("Sample records are protected and cannot be edited. Nothing was saved.",
                        409, code="not_editable")
@@ -638,7 +655,7 @@ def _update_in_transaction(cur, reference, cleaned, expected):
     duplicates = []
     if "title" in changed:                                # non-blocking warning, as in create
         cur.execute("SELECT reference_no FROM procurements WHERE data_source IN ('sample', 'encoded') "
-                    "AND title = %s AND procurement_id <> %s ORDER BY procurement_id LIMIT 5",
+                    "AND archived_at IS NULL AND title = %s AND procurement_id <> %s ORDER BY procurement_id LIMIT 5",
                     (new["title"], row["procurement_id"]))
         duplicates = [r["reference_no"] for r in cur.fetchall()]
 
@@ -695,3 +712,220 @@ def update_procurement(reference):
         "updatedAt": _iso(row["updated_at"]),
         "warnings": warnings,
     })
+
+
+# ---------------------------------------------------------------------------
+# Archive (soft delete) and restore
+# ---------------------------------------------------------------------------
+ARCHIVE_ROLES = ("secretariat",)                      # who may archive
+ARCHIVE_VIEW_ROLES = ("secretariat", "admin")         # who may see and restore archived records
+REASON_MIN, REASON_MAX = 10, 500
+ARCHIVED_ACTION = "Procurement archived"
+RESTORED_ACTION = "Procurement restored"
+REASON_MARKER = " Reason: "                           # the reason is the text after this in the log detail
+
+
+def related_counts(cur, procurement_id):
+    """Rows in the 4 tables that point at this procurement (all have RESTRICT foreign keys)."""
+    counts = {}
+    for key, table in (("notices", "bid_notices"), ("bids", "bids"),
+                       ("resolutions", "bac_resolutions"), ("awards", "award_notices")):
+        cur.execute(f"SELECT COUNT(*) AS n FROM {table} WHERE procurement_id = %s", (procurement_id,))
+        counts[key] = int(cur.fetchone()["n"])
+    return counts
+
+
+def read_version(payload, errors):
+    expected = payload.get("expectedVersion")
+    if not isinstance(expected, str) or not VERSION_PATTERN.match(expected):
+        errors["expectedVersion"] = "Reload the record and try again."
+        return None
+    return expected
+
+
+def validate_archive(payload):
+    errors = {}
+    reason = clean_text(payload, "reason", errors, label="Reason", max_len=REASON_MAX)
+    if reason is not None and len(reason) < REASON_MIN:
+        errors["reason"] = f"Reason must be at least {REASON_MIN} characters."
+    expected = read_version(payload, errors)
+    if errors:
+        raise ValidationError(errors)
+    return reason, expected
+
+
+def _archive_in_transaction(cur, reference, reason, expected):
+    """Archive one eligible draft. The row is locked FIRST; every check runs on the locked row,
+    and related records are counted after the lock (READ COMMITTED sees committed rows)."""
+    locked = lock_procurement(cur, reference)             # FOR UPDATE; 404 unless a City record
+    cur.execute(EDIT_ROW_SQL, (locked["procurement_id"],))
+    row = cur.fetchone()
+    if row["archived_at"] is not None:
+        raise ApiError("This record is already archived.", 409, code="already_archived")
+    if row["data_source"] != "encoded":
+        raise ApiError("Sample records are protected and cannot be archived. Nothing was changed.",
+                       409, code="not_archivable")
+    if row["status"] != PRE_PROCUREMENT:
+        raise ApiError(f"Only Pre-Procurement records can be archived; this record is '{row['status']}'. "
+                       "Nothing was changed.", 409, code="not_archivable")
+    if record_version(row) != expected:
+        raise ApiError("This record was changed by someone else after you opened it. Reload it and "
+                       "try again. Nothing was changed.", 409, code="stale")
+    counts = related_counts(cur, row["procurement_id"])
+    if any(counts.values()):
+        raise ApiError("This record has related notices, bids, resolutions or awards and cannot be archived. "
+                       "Nothing was changed.", 409, code="has_related_records", counts=counts)
+
+    # updated_at = updated_at keeps "last edited" unchanged (archiving is not an edit)
+    cur.execute("UPDATE procurements SET archived_at = NOW(), archived_by = %s, updated_at = updated_at "
+                "WHERE procurement_id = %s AND archived_at IS NULL", (g.user["user_id"], row["procurement_id"]))
+    if cur.rowcount != 1:
+        raise ApiError("This record is already archived.", 409, code="already_archived")
+    log_activity(cur, ARCHIVED_ACTION,
+                 f"{row['reference_no']} - {row['title']} (ABC {Decimal(str(row['abc'])):,.2f}) archived."
+                 f"{REASON_MARKER}{reason}", entity_id=row["procurement_id"], tone="warn")
+    return {"reference_no": row["reference_no"]}
+
+
+@procurement_bp.route("/api/procurements/<reference>/archive", methods=["POST"])
+@require_role(*ARCHIVE_ROLES)
+def archive_procurement(reference):
+    """Archive (soft-delete) one encoded Pre-Procurement draft with no related records."""
+    if not REFERENCE_PATTERN.match(reference or ""):
+        return json_error("Procurement not found.", 404)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return json_error("Request body must be JSON.", 400)
+    try:
+        reason, expected = validate_archive(payload)
+    except ValidationError as exc:
+        return json_error("Please correct the highlighted fields.", 400, errors=exc.errors)
+    try:
+        result = run_write(lambda cur: _archive_in_transaction(cur, reference, reason, expected))
+    except ApiError as exc:
+        return json_error(exc.message, exc.status, **exc.extra)
+    except Exception as exc:
+        current_app.logger.exception("Archive procurement %s failed", reference)
+        if getattr(exc, "errno", None) in RETRYABLE_ERRNOS:
+            return json_error("The system is busy. Please try again. Nothing was changed.", 503)
+        return json_error("Could not archive the record. Nothing was changed.", 500)
+    return jsonify({"status": "success", "id": result["reference_no"],
+                    "message": f"{result['reference_no']} archived. It can be restored from Archived Records."})
+
+
+ARCHIVED_SQL = """
+SELECT
+    p.procurement_id,
+    p.reference_no,
+    p.title,
+    p.end_user_unit,
+    p.procurement_class,
+    p.mode_id,
+    p.abc,
+    p.target_timeline,
+    p.status,
+    p.updated_by,
+    p.updated_at,
+    p.archived_at,
+    m.name       AS mode_name,
+    au.full_name AS archived_by_name,
+    (SELECT l.detail FROM activity_log l
+      WHERE l.entity_type = 'procurement' AND l.entity_id = p.procurement_id AND l.action = %s
+      ORDER BY l.log_id DESC LIMIT 1) AS archive_detail
+FROM procurements p
+JOIN procurement_modes m ON m.mode_id = p.mode_id
+LEFT JOIN users au       ON au.user_id = p.archived_by
+WHERE p.data_source IN ('sample', 'encoded')
+  AND p.archived_at IS NOT NULL
+ORDER BY p.archived_at DESC, p.procurement_id DESC
+"""
+
+
+def archived_to_json(row):
+    detail = row["archive_detail"] or ""
+    reason = detail.split(REASON_MARKER, 1)[1] if REASON_MARKER in detail else None
+    return {
+        "recordType": "Procurement",
+        "id": row["reference_no"],
+        "title": row["title"],
+        "unit": row["end_user_unit"],
+        "category": row["procurement_class"],
+        "mode": row["mode_name"],
+        "abc": _number(row["abc"]),
+        "status": row["status"],
+        "archivedAt": _iso(row["archived_at"]),
+        "archivedBy": row["archived_by_name"],
+        "reason": reason,
+        "version": record_version(row),               # send back as expectedVersion when restoring
+    }
+
+
+@procurement_bp.route("/api/archived-procurements", methods=["GET"])
+@require_role(*ARCHIVE_VIEW_ROLES)
+def get_archived_procurements():
+    """Archived City procurement records (read-only list)."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True, buffered=True)
+        try:
+            cur.execute(ARCHIVED_SQL, (ARCHIVED_ACTION,))
+            rows = cur.fetchall()
+        finally:
+            cur.close()
+    except Exception:
+        current_app.logger.exception("Failed to load archived procurements")
+        return json_error("Could not load archived records.", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+    records = [archived_to_json(r) for r in rows]
+    return jsonify({"status": "success", "count": len(records), "records": records})
+
+
+def _restore_in_transaction(cur, reference, expected):
+    locked = lock_procurement(cur, reference)             # FOR UPDATE; 404 unless a City record
+    cur.execute(EDIT_ROW_SQL, (locked["procurement_id"],))
+    row = cur.fetchone()
+    if row["archived_at"] is None:
+        raise ApiError("This record is not archived.", 409, code="not_archived")
+    if record_version(row) != expected:
+        raise ApiError("This record was changed by someone else after you opened the list. Reload it and "
+                       "try again. Nothing was changed.", 409, code="stale")
+    cur.execute("SELECT au.full_name FROM procurements p LEFT JOIN users au ON au.user_id = p.archived_by "
+                "WHERE p.procurement_id = %s", (row["procurement_id"],))
+    archived_by = (cur.fetchone() or {}).get("full_name") or "unknown"
+    cur.execute("UPDATE procurements SET archived_at = NULL, archived_by = NULL, updated_at = updated_at "
+                "WHERE procurement_id = %s AND archived_at IS NOT NULL", (row["procurement_id"],))
+    if cur.rowcount != 1:
+        raise ApiError("This record is not archived.", 409, code="not_archived")
+    log_activity(cur, RESTORED_ACTION,
+                 f"{row['reference_no']} - {row['title']} restored (archived on {_iso(row['archived_at'])} "
+                 f"by {archived_by}).", entity_id=row["procurement_id"])
+    return {"reference_no": row["reference_no"]}
+
+
+@procurement_bp.route("/api/procurements/<reference>/restore", methods=["POST"])
+@require_role(*ARCHIVE_VIEW_ROLES)
+def restore_procurement(reference):
+    """Restore one archived record (Secretariat or Administrator). Its reference number is unchanged."""
+    if not REFERENCE_PATTERN.match(reference or ""):
+        return json_error("Procurement not found.", 404)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return json_error("Request body must be JSON.", 400)
+    errors = {}
+    expected = read_version(payload, errors)
+    if errors:
+        return json_error("Please correct the highlighted fields.", 400, errors=errors)
+    try:
+        result = run_write(lambda cur: _restore_in_transaction(cur, reference, expected))
+    except ApiError as exc:
+        return json_error(exc.message, exc.status, **exc.extra)
+    except Exception as exc:
+        current_app.logger.exception("Restore procurement %s failed", reference)
+        if getattr(exc, "errno", None) in RETRYABLE_ERRNOS:
+            return json_error("The system is busy. Please try again. Nothing was changed.", 503)
+        return json_error("Could not restore the record. Nothing was changed.", 500)
+    return jsonify({"status": "success", "id": result["reference_no"],
+                    "message": f"{result['reference_no']} restored. It is visible in the registry again."})

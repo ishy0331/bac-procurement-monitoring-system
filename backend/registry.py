@@ -74,6 +74,7 @@ LEFT JOIN bids sb
 LEFT JOIN suppliers s
        ON s.supplier_id = sb.supplier_id
 WHERE p.data_source IN ('sample', 'encoded')
+  AND p.archived_at IS NULL           -- archived (soft-deleted) records are hidden
 ORDER BY p.procurement_id
 """
 

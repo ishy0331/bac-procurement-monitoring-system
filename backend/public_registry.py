@@ -92,6 +92,7 @@ LEFT JOIN suppliers s
        ON s.supplier_id = a.supplier_id
 WHERE p.data_source IN ('sample', 'encoded')
   AND p.status IN ('Posted (ITB/RFQ)', 'Awarded')
+  AND p.archived_at IS NULL           -- archived (soft-deleted) records are never public
 ORDER BY p.procurement_id
 """
 

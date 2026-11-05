@@ -171,6 +171,10 @@
           <button data-page="reports" data-roles="secretariat member admin" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition text-left">
             <i class="fa-solid fa-file-invoice w-5 text-gray-400"></i><span class="font-medium text-sm">Reports &amp; Exports</span>
           </button>
+          <!-- Archive stage: archived (soft-deleted) records - Secretariat and Super Admin only (the server enforces it too) -->
+          <button data-page="archived" data-roles="secretariat admin" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition text-left">
+            <i class="fa-solid fa-box-archive w-5 text-gray-400"></i><span class="font-medium text-sm">Archived Records</span>
+          </button>
           <button id="admin-nav-btn" data-page="admin" data-roles="admin" class="nav-btn hidden w-full flex items-center gap-3 px-4 py-3 text-gray-600 rounded-lg hover:bg-amber-50 cursor-pointer transition border border-amber-200/70 mt-2 text-left">
             <i class="fa-solid fa-user-gear w-5 text-amber-600"></i><span class="font-bold text-sm text-amber-800">System Admin</span>
           </button>
@@ -772,9 +776,43 @@
               <div>
                 <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mb-3"><i class="fa-solid fa-clock-rotate-left"></i></div>
                 <h3 class="font-bold text-sm text-gray-800">BAC Activity Log</h3>
-                <p class="text-xs text-gray-500 mt-1">Actions listed in this browser tab (demo log). The saved audit trail is the database activity log.</p>
+                <p class="text-xs text-gray-500 mt-1">Export the saved BAC activity log from the database, including historical entries.</p>
               </div>
               <button type="button" onclick="window.workspaceManager.exportActivity()" class="bg-gray-900 hover:bg-black text-white text-xs font-bold py-2.5 rounded-lg cursor-pointer transition">Export Log (CSV)</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: ARCHIVED RECORDS (archive stage) ==================== -->
+        <section id="page-archived" class="page-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-4 gap-3">
+            <div class="min-w-0">
+              <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Archived Records</h2>
+              <p class="text-xs text-gray-500">Procurement records archived by the BAC Secretariat. They stay in the database, are hidden from the registry, dashboards and the public portal, and can be restored with the same reference number.</p>
+            </div>
+            <button type="button" onclick="window.workspaceManager.loadArchived()" class="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap shadow-sm"><i class="fa-solid fa-rotate-right"></i>Refresh</button>
+          </div>
+
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center gap-3 flex-wrap">
+              <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Archived Procurements</h3>
+              <span id="archived-count" class="text-[11px] text-gray-500 font-mono"></span>
+            </div>
+            <div class="overflow-x-auto thin-scroll">
+              <table class="w-full min-w-[980px] text-left text-xs text-gray-600 border-collapse">
+                <thead class="bg-gray-100 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-200 text-[10px]">
+                  <tr>
+                    <th class="px-4 py-3 whitespace-nowrap">Reference</th>
+                    <th class="px-4 py-3">Project Title</th>
+                    <th class="px-4 py-3">End-User Unit</th>
+                    <th class="px-4 py-3 whitespace-nowrap text-right">ABC</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Archived</th>
+                    <th class="px-4 py-3">Reason</th>
+                    <th class="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200" id="archived-table-body"></tbody>
+              </table>
             </div>
           </div>
         </section>
@@ -1526,6 +1564,9 @@
 
         this.registry = [];        // INTERNAL registry: loaded only for signed-in staff (/api/procurements)
         this.publicRegistry = [];  // PUBLIC registry: published records only (/api/public/procurements)
+        this.archived = [];        // ARCHIVED records: Secretariat / Super Admin only (/api/archived-procurements)
+        this._archivedState = 'idle';   // idle | loading | loaded | error
+        this._archivedRequest = 0;      // ignores out-of-order responses
 
         this.accounts = [
           { name: 'Juan Dela Cruz', email: 'jdelacruz@example.gov.ph', role: 'BAC Secretariat', status: 'Active' },
@@ -1546,6 +1587,7 @@
         this.bindEvents();
         this.updateRoleHelp();
         this.renderRegistry();
+        this.renderArchived();
         this.renderPublic();
         this.renderActivity();
         this.renderAccounts();
@@ -1960,7 +2002,11 @@
         this.role = null;
         this.roleKey = null;
         this.registry = [];                             // internal data does not stay in the page after sign-out
+        this.archived = [];                             // archive stage: archived records are internal data too
+        this._archivedState = 'idle';
+        this._archivedRequest++;                        // drop any response still in flight
         this.renderRegistry();
+        this.renderArchived();
         this.renderPublic();
         this.closeModal();
         this.closeSidebar();
@@ -1988,6 +2034,7 @@
         btn.classList.add('active-nav');
         this.closeSidebar();
         window.scrollTo({ top: 0 });
+        if (pageId === 'archived') this.loadArchived();   // archive stage: always a fresh list from the server
       }
 
       switchSubTab(subTabId, activeBtn) {
@@ -3124,6 +3171,334 @@
           : 'Could not save the changes. Nothing was saved.'));
       }
 
+      /* ===== Archive stage: archive (soft-delete) and restore =====
+         POST /api/procurements/<reference>/archive   (Secretariat)
+         GET  /api/archived-procurements              (Secretariat, Super Admin)
+         POST /api/procurements/<reference>/restore   (Secretariat, Super Admin)
+         The buttons below are display rules only; the server decides every request. */
+      canShowArchive(item) {
+        return this.roleKey === 'secretariat' && item.status === 'Pre-Procurement'
+          && item.dataSource === 'encoded' && !item.demo;
+      }
+
+      canViewArchived() {
+        return this.roleKey === 'secretariat' || this.roleKey === 'admin';
+      }
+
+      // Same rule as the server: spaces collapsed, then 10-500 characters.
+      archiveReasonText(value) {
+        return String(value || '').split(/\s+/).filter(Boolean).join(' ');
+      }
+
+      // Session ended or a password change is required: same handling as Edit.
+      archiveSessionEnded(res) {
+        const data = res.data || {};
+        if (res.status === 401 || (res.status === 403 && data.code === 'password_change_required')) {
+          this.endArchiveDialog();
+          this.handleSessionExpired(data.message || 'Your session expired. Please sign in again.');
+          return true;
+        }
+        return false;
+      }
+
+      endArchiveDialog() {
+        this._archive = null;
+        this._restore = null;
+        this.setModalBusy(false);
+        const m = document.getElementById('modal');
+        if (m && !m.classList.contains('hidden')) this.closeModal();
+      }
+
+      async archiveProcurement(id) {
+        if (this.roleKey !== 'secretariat') {
+          this.showToast('Only the BAC Secretariat can archive procurement records.', 'warn');
+          return;
+        }
+        if (this._archiveLoading) return;
+        this._archiveLoading = true;
+        try {
+          let res;
+          try {
+            res = await this.fetchProcurementDetail(id);          // fresh record + version, never the registry copy
+          } catch (error) {
+            console.error('Failed to load procurement for archiving:', error);
+            this.showToast('Could not load the record. Check your connection and try again.', 'error');
+            return;
+          }
+          if (this.archiveSessionEnded(res)) return;
+          if (!res.ok) {
+            this.showToast((res.data && res.data.message) || 'Could not load the procurement record.', 'error');
+            if (res.status === 404) this.loadRegistry();
+            return;
+          }
+          const d = res.data.procurement;
+          if (!d || d.canArchive !== true || typeof d.version !== 'string' || !/^[0-9a-f]{64}$/.test(d.version)) {
+            this.showToast('This record can no longer be archived (it may have changed, have related notices, bids, '
+              + 'resolutions or awards, or already be archived). The registry has been refreshed.', 'warn');
+            this.loadRegistry();
+            return;
+          }
+          this._archive = { id: d.id, version: d.version };
+          const field = 'mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:border-[#A60E0D]';
+          this.openModal({
+            title: 'Archive Procurement',
+            subtitle: d.id + ' • ' + d.status,
+            confirmText: 'Archive Record',
+            body: `
+              <div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <div class="font-semibold text-gray-900 leading-snug">${esc(d.title)}</div>
+                <div class="text-[11px] text-gray-500 mt-0.5">${esc(d.unit)} • ${esc(d.category)} • <span class="font-mono">${esc(peso(d.abc))}</span></div>
+              </div>
+              <label class="block"><span class="text-[11px] font-bold uppercase tracking-wider text-gray-600">Reason for archiving <span class="text-[#A60E0D]">*</span></span>
+                <textarea id="a-reason" rows="3" maxlength="500" class="${field}" placeholder="e.g. Duplicate entry encoded by mistake"></textarea></label>
+              <div class="flex justify-between gap-2 text-[11px] text-gray-500">
+                <span>10 to 500 characters. Saved in the activity log.</span>
+                <span id="a-reason-count" class="font-mono whitespace-nowrap">0 / 500</span>
+              </div>
+              <p class="text-[11px] text-gray-500">The record is not deleted. It is hidden from the registry, dashboards and the public portal, and the Secretariat or Super Admin can restore it from Archived Records with the same reference number.</p>`,
+            onConfirm: () => { this.archiveModalConfirm(); return false; }   // keep the dialog open; the request decides
+          });
+          const box = document.getElementById('a-reason');
+          const count = document.getElementById('a-reason-count');
+          box.addEventListener('input', () => { count.textContent = this.archiveReasonText(box.value).length + ' / 500'; });
+          setTimeout(() => box.focus(), 30);
+        } finally {
+          this._archiveLoading = false;
+        }
+      }
+
+      async archiveModalConfirm() {
+        const st = this._archive;
+        if (!st || this._modalBusy) return;
+        const box = document.getElementById('a-reason');
+        const reason = this.archiveReasonText(box ? box.value : '');
+        if (reason.length < 10 || reason.length > 500) {
+          if (box) { box.classList.add('border-red-500'); box.classList.remove('border-gray-300'); }
+          this.modalError(reason.length < 10
+            ? 'Enter a reason of at least 10 characters.'
+            : 'The reason must be at most 500 characters.');
+          return;
+        }
+        this.setModalBusy(true, 'Archiving...');
+        let res;
+        try {
+          res = await this.sendJson('POST', '/api/procurements/' + encodeURIComponent(st.id) + '/archive',
+            { reason, expectedVersion: st.version });
+        } catch (error) {
+          console.error('Failed to archive procurement:', error);
+          this.setModalBusy(false, 'Archive Record');
+          this.modalError('Could not confirm the archive because of a connection problem. '
+            + 'Reload the registry to check the record before trying again.');
+          return;
+        }
+        this.setModalBusy(false, 'Archive Record');
+        if (this._archive !== st) return;
+        const data = res.data || {};
+
+        if (res.ok && data.status === 'success') {
+          this.endArchiveDialog();
+          this.registry = this.registry.filter(r => r.id !== st.id);   // gone from the active registry at once
+          this.renderRegistry();
+          this.renderPublic();
+          this.renderSupplierLookup();
+          this.showToast(data.message || (st.id + ' archived.'), 'ok');
+          this.loadRegistry();                                          // then the server's copy
+          return;
+        }
+        if (this.archiveSessionEnded(res)) return;
+        if (res.status === 400 && data.errors) {
+          if (data.errors.expectedVersion) {
+            this.endArchiveDialog();
+            this.showToast('The record version could not be confirmed. The registry has been refreshed; open Archive again.', 'warn');
+            this.loadRegistry();
+            return;
+          }
+          if (data.errors.reason && box) { box.classList.add('border-red-500'); box.classList.remove('border-gray-300'); }
+          this.modalError((data.message || 'Please correct the highlighted fields.') + ' ' + Object.values(data.errors).join(' '));
+          return;
+        }
+        if (res.status === 409 && data.code === 'stale') {
+          this.endArchiveDialog();
+          this.showToast((data.message || 'This record was changed by someone else.') + ' The registry has been refreshed.', 'warn');
+          this.loadRegistry();
+          return;
+        }
+        if (res.status === 403) {
+          this.endArchiveDialog();
+          this.showToast('You do not have permission to archive procurement records.', 'error');
+          return;
+        }
+        if (res.status === 404 || res.status === 409) {     // already archived, not archivable, related records
+          this.endArchiveDialog();
+          this.showToast(data.message || 'This record can no longer be archived.', 'error');
+          this.loadRegistry();
+          return;
+        }
+        this.modalError(data.message || (res.status === 503
+          ? 'The system is busy. Please try again. Nothing was changed.'
+          : 'Could not archive the record. Nothing was changed.'));
+      }
+
+      async loadArchived() {
+        if (!this.canViewArchived()) return;
+        const request = ++this._archivedRequest;
+        this._archivedState = 'loading';
+        this.renderArchived();
+        let response, result;
+        try {
+          response = await fetch('/api/archived-procurements', { credentials: 'same-origin' });
+          result = await response.json().catch(() => ({}));
+        } catch (error) {
+          if (request !== this._archivedRequest) return;
+          console.error('Failed to load archived records:', error);
+          this._archivedState = 'error';
+          this.renderArchived();
+          this.showToast('Could not load archived records. Check your connection and try again.', 'error');
+          return;
+        }
+        if (request !== this._archivedRequest) return;
+        if (response.status === 401 || (response.status === 403 && result.code === 'password_change_required')) {
+          this.handleSessionExpired(result.message || 'Your session expired. Please sign in again.');
+          return;
+        }
+        if (response.status === 403) {
+          this.archived = [];
+          this._archivedState = 'error';
+          this.renderArchived();
+          this.showToast('Archived records are not available for your role.', 'warn');
+          return;
+        }
+        if (!response.ok || result.status !== 'success' || !Array.isArray(result.records)) {
+          this._archivedState = 'error';
+          this.renderArchived();
+          this.showToast(result.message || 'Could not load archived records.', 'error');
+          return;
+        }
+        this.archived = result.records;
+        this._archivedState = 'loaded';
+        this.renderArchived();
+      }
+
+      renderArchived() {
+        const tbody = document.getElementById('archived-table-body');
+        if (!tbody) return;
+        const countEl = document.getElementById('archived-count');
+        const message = text => `<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">${text}</td></tr>`;
+        if (this._archivedState === 'loading' && !this.archived.length) {
+          tbody.innerHTML = message('<i class="fa-solid fa-spinner fa-spin mr-1"></i>Loading archived records...');
+          if (countEl) countEl.textContent = '';
+          return;
+        }
+        if (this._archivedState === 'error' && !this.archived.length) {
+          tbody.innerHTML = message('Archived records could not be loaded. Select Refresh to try again.');
+          if (countEl) countEl.textContent = '';
+          return;
+        }
+        const canRestore = this.canViewArchived();
+        tbody.innerHTML = this.archived.length ? this.archived.map(r => {
+          const restoreHtml = canRestore
+            ? `<button type="button" onclick="window.workspaceManager.restoreProcurement('${esc(r.id)}')" class="inline-flex items-center gap-1.5 bg-[#A60E0D] hover:bg-[#8a0b0a] text-[#F2E503] px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide cursor-pointer whitespace-nowrap"><i class="fa-solid fa-rotate-left"></i>Restore</button>`
+            : '<span class="text-gray-300">—</span>';
+          return `<tr class="hover:bg-gray-50 transition">
+            <td class="px-4 py-3 font-mono text-[#A60E0D] font-bold whitespace-nowrap align-top">${esc(r.id)}</td>
+            <td class="px-4 py-3 align-top min-w-[220px]"><div class="font-medium text-gray-900 leading-snug">${esc(r.title)}</div><div class="text-[10px] text-gray-400 mt-0.5">${esc(r.category)}${r.mode ? ' • ' + esc(r.mode) : ''}</div></td>
+            <td class="px-4 py-3 text-gray-500 align-top">${esc(r.unit)}</td>
+            <td class="px-4 py-3 font-mono text-gray-900 text-right whitespace-nowrap align-top">${r.abc == null ? '' : esc(peso(r.abc))}</td>
+            <td class="px-4 py-3 align-top whitespace-nowrap"><div class="font-mono text-gray-800">${esc(r.archivedAt || '')}</div><div class="text-[10px] text-gray-400 mt-0.5">${r.archivedBy ? 'by ' + esc(r.archivedBy) : ''}</div></td>
+            <td class="px-4 py-3 align-top min-w-[220px] max-w-[320px]"><div class="text-gray-700 leading-snug break-words whitespace-pre-wrap">${r.reason ? esc(r.reason) : '<span class="text-gray-400">(no reason recorded)</span>'}</div></td>
+            <td class="px-4 py-3 text-right align-top">${restoreHtml}</td>
+          </tr>`;
+        }).join('') : message(this._archivedState === 'loaded' ? 'No archived records.' : 'Open this page to load archived records.');
+        if (countEl) countEl.textContent = this._archivedState === 'loaded' || this.archived.length
+          ? this.archived.length + ' archived item' + (this.archived.length === 1 ? '' : 's') : '';
+      }
+
+      restoreProcurement(id) {
+        if (!this.canViewArchived()) {
+          this.showToast('Only the BAC Secretariat or Super Admin can restore archived records.', 'warn');
+          return;
+        }
+        const rec = this.archived.find(r => r.id === id);
+        if (!rec || typeof rec.version !== 'string' || !/^[0-9a-f]{64}$/.test(rec.version)) {
+          this.showToast('This archived record could not be found in the list. The list has been refreshed.', 'warn');
+          this.loadArchived();
+          return;
+        }
+        this._restore = { id: rec.id, version: rec.version };
+        this.openModal({
+          title: 'Restore Archived Record',
+          subtitle: rec.id + ' • archived ' + (rec.archivedAt || ''),
+          confirmText: 'Restore Record',
+          body: `
+            <div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <div class="font-semibold text-gray-900 leading-snug">${esc(rec.title)}</div>
+              <div class="text-[11px] text-gray-500 mt-0.5">${esc(rec.unit)} • ${esc(rec.category)}${rec.abc == null ? '' : ' • <span class="font-mono">' + esc(peso(rec.abc)) + '</span>'}</div>
+              ${rec.reason ? `<div class="text-[11px] text-gray-500 mt-1">Archived because: <span class="text-gray-700">${esc(rec.reason)}</span></div>` : ''}
+            </div>
+            <p class="text-gray-700">Restore <span class="font-mono font-bold">${esc(rec.id)}</span>? It returns to the procurement registry with the same reference number. The restore is recorded in the activity log.</p>`,
+          onConfirm: () => { this.restoreModalConfirm(); return false; }    // keep the dialog open; the request decides
+        });
+      }
+
+      async restoreModalConfirm() {
+        const st = this._restore;
+        if (!st || this._modalBusy) return;
+        this.setModalBusy(true, 'Restoring...');
+        let res;
+        try {
+          res = await this.sendJson('POST', '/api/procurements/' + encodeURIComponent(st.id) + '/restore',
+            { expectedVersion: st.version });
+        } catch (error) {
+          console.error('Failed to restore procurement:', error);
+          this.setModalBusy(false, 'Restore Record');
+          this.modalError('Could not confirm the restore because of a connection problem. '
+            + 'Refresh the archived list to check the record before trying again.');
+          return;
+        }
+        this.setModalBusy(false, 'Restore Record');
+        if (this._restore !== st) return;
+        const data = res.data || {};
+
+        if (res.ok && data.status === 'success') {
+          this.endArchiveDialog();
+          this.archived = this.archived.filter(r => r.id !== st.id);
+          this.renderArchived();
+          this.showToast(data.message || (st.id + ' restored.'), 'ok');
+          this.loadArchived();
+          this.loadRegistry();
+          return;
+        }
+        if (this.archiveSessionEnded(res)) return;
+        if ((res.status === 409 && data.code === 'stale') || (res.status === 400 && data.errors && data.errors.expectedVersion)) {
+          this.endArchiveDialog();
+          this.showToast('This archived record changed after the list was loaded. The list has been refreshed; '
+            + 'check the record and select Restore again.', 'warn');
+          this.loadArchived();
+          return;
+        }
+        if (res.status === 409 && data.code === 'not_archived') {
+          this.endArchiveDialog();
+          this.showToast(data.message || 'This record is no longer archived (it may already have been restored).', 'info');
+          this.loadArchived();
+          this.loadRegistry();
+          return;
+        }
+        if (res.status === 403) {
+          this.endArchiveDialog();
+          this.showToast('You do not have permission to restore archived records.', 'error');
+          return;
+        }
+        if (res.status === 404 || res.status === 409) {
+          this.endArchiveDialog();
+          this.showToast(data.message || 'This record could not be restored.', 'error');
+          this.loadArchived();
+          return;
+        }
+        this.modalError(data.message || (res.status === 503
+          ? 'The system is busy. Please try again. Nothing was changed.'
+          : 'Could not restore the record. Nothing was changed.'));
+      }
+
       actionFor(item) {
         const r = this.roleKey;
         if (r === 'secretariat') {
@@ -3164,6 +3539,11 @@
           const editHtml = this.canShowEdit(r)
             ? `<button type="button" onclick="window.workspaceManager.editProcurement('${r.id}')" class="inline-flex items-center gap-1.5 bg-white border border-[#A60E0D] text-[#A60E0D] hover:bg-red-50 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide cursor-pointer whitespace-nowrap"><i class="fa-solid fa-pen"></i>Edit</button>`
             : '';
+          // Archive stage: Archive button (display only; the server decides who may archive which record)
+          const archiveHtml = this.canShowArchive(r)
+            ? `<button type="button" onclick="window.workspaceManager.archiveProcurement('${r.id}')" class="inline-flex items-center gap-1.5 bg-white border border-gray-400 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide cursor-pointer whitespace-nowrap"><i class="fa-solid fa-box-archive"></i>Archive</button>`
+            : '';
+          const extraHtml = editHtml + archiveHtml;
           const bidderHtml = r.bidder
             ? `<div class="font-semibold text-gray-800">${esc(r.bidder)}</div><div class="text-[10px] text-gray-400 font-mono">${r.bidAmount ? esc(peso(r.bidAmount)) : ''}${r.bids ? ' • ' + r.bids + ' bid' + (r.bids > 1 ? 's' : '') : ''}</div>`
             : '<span class="text-gray-400">Not yet determined</span>';
@@ -3174,7 +3554,7 @@
             <td class="px-4 py-3 font-mono text-gray-900 text-right whitespace-nowrap align-top">${esc(peso(r.abc))}</td>
             <td class="px-4 py-3 align-top min-w-[160px]">${bidderHtml}</td>
             <td class="px-4 py-3 align-top"><span class="inline-block border px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${STATUS_STYLE[r.status] || ''}">${esc(r.status)}</span>${r.resolution ? `<div class="text-[10px] text-gray-400 mt-1 whitespace-nowrap">${esc(r.resolution)}</div>` : ''}</td>
-            <td class="px-4 py-3 text-right align-top">${editHtml ? `<div class="flex flex-wrap justify-end gap-1.5">${editHtml}${actHtml}</div>` : actHtml}</td>
+            <td class="px-4 py-3 text-right align-top">${extraHtml ? `<div class="flex flex-wrap justify-end gap-1.5">${extraHtml}${actHtml}</div>` : actHtml}</td>
           </tr>`;
         }).join('') : `<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No registry items match the current filter.</td></tr>`;
 
@@ -3573,11 +3953,31 @@
         this.downloadCSV('PhilGEPS_Reference_Knowledge_Graph.csv', rows);
         this.showToast('Reference graph extract exported (' + KG.nodes.length + ' nodes, ' + KG.edges.length + ' relationships; other agencies, not City records).', 'ok');
       }
-      exportActivity() {
-        const rows = [['Timestamp', 'Actor', 'Event', 'Detail']];
-        this.activity.forEach(a => rows.push([a.time, a.actor, a.title, a.detail]));
-        this.downloadCSV('BAC_Activity_Log.csv', rows);
-        this.showToast('Activity log exported (' + this.activity.length + ' entries).', 'ok');
+      async exportActivity() {
+        try {
+          const response = await fetch('/api/activity-log', {
+            credentials: 'same-origin'
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || result.status !== 'success') {
+            throw new Error(result.message || 'Activity log export failed.');
+          }
+
+          const rows = [['Timestamp', 'Actor', 'Event', 'Detail']];
+
+          result.records.forEach(a => {
+            rows.push([a.timestamp, a.actor, a.event, a.detail]);
+          });
+
+          this.downloadCSV('BAC_Activity_Log.csv', rows);
+          this.showToast('Activity log exported (' + result.count + ' saved entries).', 'ok');
+
+        } catch (error) {
+          console.error('Activity log export failed:', error);
+          this.showToast('Could not export the saved activity log.', 'warn');
+        }
       }
 
       /* ===== Toasts ===== */
