@@ -51,6 +51,7 @@
       text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; padding: 2px 8px; border-radius: 9999px;
       background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
     .ref-pill { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+    .neo-pill { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
     .demo-note { font-size: 11px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 10px; line-height: 1.45; }
 
     /* ---------- Warning notifications (larger, easier to notice) ----------
@@ -536,12 +537,17 @@
               <p class="text-xs text-gray-500 max-w-3xl">Knowledge graph built from the system's sample procurement records in the database: procurements, bids, BAC resolutions, award notices, contracts, suppliers and their representatives. Each node is one database record; nothing is merged by name.</p>
               <p class="text-[11px] text-amber-900 max-w-3xl mt-1.5"><span id="kg-sample-label" class="demo-pill mr-1">Sample Data</span>Fictional demonstration records (data_source = sample). They are not Santa Rosa City procurement records and are kept separate from the PhilGEPS reference graph. <button type="button" onclick="window.workspaceManager.exportSampleGraph()" class="ml-1 underline font-semibold text-amber-900 hover:text-[#A60E0D] cursor-pointer">Export Sample Graph (CSV)</button></p>
               </div>
+              <!-- Neo4j - Synced City Data: snapshot read from the Neo4j graph database (GET /api/graph/neo4j) -->
+              <div id="kg-neo4j-desc" class="hidden">
+              <p class="text-xs text-gray-500 max-w-3xl">Knowledge graph read from the Neo4j graph database: the copy of the system's sample procurement records that the last synchronization wrote from MariaDB into Neo4j. Node labels and relationship types are shown exactly as stored in Neo4j. Only recorded relationships are shown; nothing is inferred.</p>
+              <p class="text-[11px] text-emerald-900 max-w-3xl mt-1.5"><span id="kg-neo4j-label" class="demo-pill neo-pill mr-1">Synced City Sample Data</span>Snapshot from the last sync, not live data. <span id="kg-neo4j-synced" class="font-semibold">Last sync: not loaded</span>. Fictional sample records (data_source = sample); not Santa Rosa City procurement records and not PhilGEPS reference data. <button type="button" onclick="window.workspaceManager.loadNeo4jGraph()" class="ml-1 underline font-semibold text-emerald-900 hover:text-[#A60E0D] cursor-pointer">Reload snapshot</button> <button type="button" onclick="window.workspaceManager.exportNeo4jGraph()" class="ml-1 underline font-semibold text-emerald-900 hover:text-[#A60E0D] cursor-pointer">Export Neo4j Graph (CSV)</button></p>
+              </div>
             </div>
             <div id="kg-legend" class="flex flex-wrap gap-1.5 text-[10px] max-w-xl"></div>
           </div>
 
           <div class="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-4 min-w-0">
-            <!-- Graph data: Sample City Graph (default) or PhilGEPS reference graph - never mixed -->
+            <!-- Graph data: Sample City Graph (default), PhilGEPS reference graph or Neo4j synced graph - never mixed -->
             <div class="flex flex-wrap items-center gap-2 pb-3 border-b border-gray-100" role="tablist" aria-label="Graph data">
               <span class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">Graph data</span>
               <button type="button" data-kg-mode="sample" class="kg-mode ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
@@ -551,6 +557,10 @@
               <button type="button" data-kg-mode="reference" class="kg-mode ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
                 <div class="text-xs font-bold"><i class="fa-solid fa-book-open mr-1"></i>PhilGEPS Reference</div>
                 <div class="ds-sub text-[10px] text-gray-500">Other agencies &bull; not City records</div>
+              </button>
+              <button type="button" data-kg-mode="neo4j" class="kg-mode ds-tab rounded-lg px-3 py-2 text-left transition cursor-pointer">
+                <div class="text-xs font-bold"><i class="fa-solid fa-database mr-1"></i>Neo4j &ndash; Synced City Data</div>
+                <div class="ds-sub text-[10px] text-gray-500">Snapshot from last sync &bull; sample records</div>
               </button>
             </div>
 
@@ -908,7 +918,7 @@
             <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 min-w-0">
               <div class="flex flex-wrap justify-between items-center gap-2">
                 <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2"><i class="fa-solid fa-database text-blue-700"></i> Knowledge Graph Maintenance</h3>
-                <span class="demo-pill">Simulation &bull; Neo4j not connected</span>
+                <span class="demo-pill">Sync: real &bull; other buttons: simulation</span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -927,10 +937,16 @@
                 <div id="reindex-label" class="text-[10px] text-gray-500 mt-1 font-mono"></div>
               </div>
               <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="window.workspaceManager.clearCache()" class="bg-gray-100 border border-gray-300 text-gray-700 font-bold text-xs py-2 rounded-lg hover:bg-gray-200 transition cursor-pointer">Clear Query Cache</button>
-                <button type="button" onclick="window.workspaceManager.reindexGraph()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2 rounded-lg transition cursor-pointer">Re-Index Graph</button>
+                <button type="button" onclick="window.workspaceManager.clearCache()" class="bg-gray-100 border border-gray-300 text-gray-700 font-bold text-xs py-2 rounded-lg hover:bg-gray-200 transition cursor-pointer">Clear Query Cache (simulation)</button>
+                <button type="button" onclick="window.workspaceManager.reindexGraph()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2 rounded-lg transition cursor-pointer">Re-Index Graph (simulation)</button>
               </div>
-              <p class="text-[11px] text-gray-500 leading-relaxed">Planned for Phase 7: rebuild the Neo4j indexes and re-sync relationships from the MariaDB records. Until then both buttons are simulations and change nothing.</p>
+              <!-- Real: POST /api/graph/neo4j/sync (Super Admin only on the server). Results are shown here, separate from the reference-graph counts above. -->
+              <div class="border-t border-gray-100 pt-3 space-y-2">
+                <button type="button" id="neo4j-sync-btn" onclick="window.workspaceManager.syncNeo4j()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2 rounded-lg transition cursor-pointer"><i class="fa-solid fa-rotate mr-1"></i>Sync to Neo4j</button>
+                <div class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Neo4j synchronization result</div>
+                <div id="neo4j-sync-status" class="text-[11px] text-gray-500 leading-relaxed" aria-live="polite">No synchronization has been run from this page yet.</div>
+              </div>
+              <p class="text-[11px] text-gray-500 leading-relaxed">Sync to Neo4j copies the approved sample records (data_source = sample) from MariaDB into the Neo4j graph database; MariaDB is only read. Clear Query Cache and Re-Index Graph are simulations and change nothing.</p>
             </div>
           </div>
         </section>
@@ -1103,8 +1119,13 @@
       Category:    { color: '#b45309', code: 'CAT', r: 16, label: 'Category',         icon: 'fa-tags' },
       Mode:        { color: '#4338ca', code: 'MOD', r: 15, label: 'Procurement Mode', icon: 'fa-list-check' },
       Location:    { color: '#0f766e', code: 'LOC', r: 13, label: 'Location',         icon: 'fa-location-dot' },
-      Resolution:  { color: '#be185d', code: 'RES', r: 16, label: 'BAC Resolution',   icon: 'fa-gavel' }   // Sample City Graph only
+      Resolution:  { color: '#be185d', code: 'RES', r: 16, label: 'BAC Resolution',   icon: 'fa-gavel' },  // Sample City Graph and Neo4j graph
+      BidNotice:   { color: '#4d7c0f', code: 'BN',  r: 15, label: 'Bid Notice',       icon: 'fa-bullhorn' },     // Neo4j graph only
+      Bid:         { color: '#15803d', code: 'BID', r: 14, label: 'Bid',              icon: 'fa-hand-holding-dollar' }, // Neo4j graph only
+      Unmapped:    { color: '#6b7280', code: '?',   r: 14, label: 'Unmapped label',   icon: 'fa-circle-question' }      // Neo4j graph: label not in the schema
     };
+    // Node types of the PhilGEPS reference graph (its legend lists exactly these, as before).
+    const REF_NODE_TYPES = ['Agency', 'Supplier', 'Project', 'AwardNotice', 'Contract', 'Person', 'Category', 'Mode', 'Location'];
     const LAYER_OF = { Person: 'person', Category: 'category', Mode: 'mode', Location: 'location' };
     const EDGE_LEN = { FOR_PROJECT: 95, PROCURED_BY: 105, AWARDED_TO: 120, FORMALIZED_AS: 85, CERTIFIED_BY: 95, REPRESENTED_BY: 85, CLASSIFIED_AS: 100, CONDUCTED_VIA: 150, LOCATED_IN: 95, SUPPLIES_TO: 230, CO_LOCATED_WITH: 200,
       BID_ON: 130, RESOLVES: 90, RECOMMENDS: 120, BIDS_TO: 230 };   // last four: Sample City Graph only
@@ -1668,6 +1689,183 @@
       return { nodes, edges, pos, halos: [], decor: [], vb: boundsOf(pos, nodes.map(n => n.id), { l: 150, r: 150, t: 90, b: 120 }) };
     }
 
+    /* ---------- Neo4j - Synced City Data (GET /api/graph/neo4j, read-only snapshot of the last sync) ---------- */
+    /* A third, separate graph. Node labels and relationship types are kept exactly as stored in Neo4j;
+       labels are only mapped to a display type (colour, icon). Nothing is inferred and nothing is merged
+       with the Sample City Graph or the PhilGEPS reference graph (IDs are prefixed "n4j:"). */
+    const NEO4J_TYPE_OF = {
+      Procurement: 'Project', ProcuringEntity: 'Agency', Category: 'Category', ProcurementMode: 'Mode',
+      BidNotice: 'BidNotice', Supplier: 'Supplier', Bid: 'Bid', BacResolution: 'Resolution',
+      AwardNotice: 'AwardNotice', Contract: 'Contract', Person: 'Person'
+    };
+    const NEO4J_EDGE_INFO = {
+      PROCURED_BY: 'Recorded in Neo4j: the procurement is conducted by this procuring entity (procurements.procuring_entity_id).',
+      IN_CATEGORY: 'Recorded in Neo4j: the commodity category of the procurement (procurements.category_id).',
+      USES_MODE: 'Recorded in Neo4j: the procurement mode of the procurement (procurements.mode_id).',
+      NOTICE_FOR: 'Recorded in Neo4j: the bid notice (ITB/RFQ) was issued for this procurement (bid_notices.procurement_id).',
+      SUBMITTED: 'Recorded in Neo4j: the supplier submitted this bid (bids.supplier_id). A bid alone does not make the supplier the recommended or winning bidder.',
+      FOR_PROCUREMENT: 'Recorded in Neo4j: the bid was submitted for this procurement (bids.procurement_id).',
+      UNDER_NOTICE: 'Recorded in Neo4j: the bid was submitted under this bid notice of the same procurement (composite key bids (notice_id, procurement_id)).',
+      RESOLVES: 'Recorded in Neo4j: the BAC resolution concerns this procurement (bac_resolutions.procurement_id).',
+      RECOMMENDS: 'Recorded in Neo4j: the bid named in the BAC resolution as the recommended bid (composite key (recommended_bid_id, procurement_id)). It is recorded by the BAC, never derived from the bid ranking.',
+      AWARDS: 'Recorded in Neo4j: the award notice awards this procurement (award_notices.procurement_id).',
+      AWARDED_TO: 'Recorded in Neo4j: the award notice names this supplier (award_notices.supplier_id).',
+      BASED_ON_BID: 'Recorded in Neo4j: the award is based on this bid of the same procurement and supplier (composite key (bid_id, procurement_id, supplier_id)).',
+      BASED_ON_RESOLUTION: 'Recorded in Neo4j: the award is based on this BAC resolution of the same procurement (composite key (resolution_id, procurement_id)).',
+      UNDER_CONTRACT: 'Recorded in Neo4j: the award is formalized under this contract (award_notices.contract_id).',
+      CERTIFIED_BY: 'Recorded in Neo4j: the official recorded as certifying the award (award_notices.certified_by_person_id), with the recorded role.',
+      REPRESENTED_BY: 'Recorded in Neo4j: the supplier’s representative (supplier_representatives), with the recorded position.'
+    };
+    const NEO4J_UNKNOWN_EDGE = 'This relationship type is not in the documented graph schema. It is shown exactly as recorded in Neo4j.';
+    const NEO4J_NODE_SUMMARY = {
+      Project: 'A :Procurement node: one sample procurement record copied from MariaDB, with its ABC and stage. Bids, bid notices, BAC resolutions and award notices connect to it.',
+      Agency: 'A :ProcuringEntity node: the procuring entity of the synced sample procurements.',
+      Category: 'A :Category node: commodity category referenced by synced procurements.',
+      Mode: 'A :ProcurementMode node: procurement mode referenced by synced procurements.',
+      BidNotice: 'A :BidNotice node: the ITB/RFQ notice recorded for a procurement. Bids point to the notice they were submitted under.',
+      Supplier: 'A :Supplier node: one sample supplier record. SUBMITTED, AWARDED_TO and REPRESENTED_BY show its recorded bids, awards and representatives.',
+      Bid: 'A :Bid node: one recorded bid with its amount and rank. Being the lowest bid does not make it the recommended or winning bid; only RECOMMENDS and BASED_ON_BID record that.',
+      Resolution: 'A :BacResolution node: the BAC resolution recorded for a procurement and, when one is recorded, the bid it recommends.',
+      AwardNotice: 'An :AwardNotice node: the Notice of Award recorded for a procurement, with the awarded amount, the supplier and the bid, resolution and contract it is based on.',
+      Contract: 'A :Contract node: the contract or purchase order an award is formalized under.',
+      Person: 'A :Person node: a supplier representative or a certifying official, as recorded.',
+      Unmapped: 'A node whose Neo4j label is not in the documented graph schema. It is shown as recorded so nothing is hidden; check the synchronization if this appears.'
+    };
+    const NEO4J_MONEY = new Set(['abc', 'amount', 'awardedAmount']);
+    const NEO4J_LAYER_ROW = { Agency: 70, Mode: 140, Category: 210, Project: 330, BidNotice: 445, Bid: 560, Resolution: 680, AwardNotice: 680,
+      Contract: 800, Supplier: 920, Person: 1040, Unmapped: 1150 };
+
+    function fmtSyncTime(iso) {
+      if (!iso) return 'not recorded';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      try {
+        return d.toLocaleString('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (PHT)';
+      } catch (e) { return String(iso); }
+    }
+
+    function neo4jMeta(data) {
+      const label = (data && data.dataLabel) || 'Synced City Sample Data';
+      const sync = (data && data.sync) || null;
+      const synced = sync && sync.lastSyncedAt ? fmtSyncTime(sync.lastSyncedAt) : 'not recorded';
+      return {
+        mode: 'neo4j', dataLabel: label, notice: (data && data.notice) || '', sync, syncedText: synced,
+        database: (data && data.database) || '', counts: (data && data.counts) || {}, skippedEdges: 0,
+        recordLabel: r => r,
+        sourceHeading: 'Synced procurements',
+        mergedBadge: k => 'In ' + k + ' synced procurements',
+        recordedTag: 'Recorded in Neo4j (synced from MariaDB)',
+        recordedText: 'Read from the Neo4j graph database. It was written there by the last synchronization from the MariaDB records; it is a snapshot, not live data.',
+        overviewIntro: 'Click any node or relationship to inspect it. Every node is one Neo4j node of the synced sample records (' + label + '); labels and relationship types are exactly as stored in Neo4j. Snapshot from the last sync: ' + synced + '.',
+        mergedHeading: 'Entities in more than one synced procurement',
+        overviewNote: 'Nodes are identified by their MariaDB record keys (for example Procurement:101). Only relationships recorded in Neo4j are shown; no links are inferred. This graph is never combined with the Sample City Graph or the PhilGEPS reference data.',
+        inspectorSource: 'Source: Neo4j snapshot · last sync ' + synced,
+        nodeBadge: '<span class="demo-pill neo-pill">' + esc(label) + '</span>',
+        cypherCaption: 'Cypher pattern over the Neo4j labels and relationship types. In this page it is evaluated on the snapshot loaded from Neo4j (GET /api/graph/neo4j); no query is sent to Neo4j.',
+        nodeSummary: NEO4J_NODE_SUMMARY,
+        edgeInfo: NEO4J_EDGE_INFO
+      };
+    }
+
+    function neo4jNodeLabel(label, p, key) {
+      const k = key == null ? '' : ' ' + key;
+      switch (label) {
+        case 'Procurement': return p.title || p.referenceNo || 'Procurement' + k;
+        case 'ProcuringEntity': case 'Category': case 'ProcurementMode': case 'Supplier': return p.name || label + k;
+        case 'BidNotice': return (p.noticeType || 'Bid notice') + ' ' + (p.philgepsRef || '#' + (key == null ? '?' : key));
+        case 'Bid': return 'Bid #' + (key == null ? '?' : key) + (typeof p.amount === 'number' ? ' · ' + pesoShort(p.amount) : '');
+        case 'BacResolution': return p.resolutionNo || 'Resolution' + k;
+        case 'AwardNotice': return 'Award Notice ' + (p.noticeNo || '#' + (key == null ? '?' : key));
+        case 'Contract': return 'Contract ' + (p.contractNo || '#' + (key == null ? '?' : key));
+        case 'Person': return p.fullName || 'Person' + k;
+      }
+      const firstText = Object.keys(p).map(x => p[x]).find(v => typeof v === 'string' && v);
+      return (label || 'Node') + (firstText ? ': ' + firstText : k);
+    }
+
+    function buildNeo4jGraph(data) {
+      const nodes = [], edges = [], byApiId = {};
+      (data.nodes || []).forEach(n => {
+        if (!n || n.id == null) return;
+        const label = n.label || '(no label)';
+        const props = (n.properties && typeof n.properties === 'object') ? n.properties : {};
+        const type = n.known !== false && NEO4J_TYPE_OF[label] ? NEO4J_TYPE_OF[label] : 'Unmapped';
+        const node = { id: 'n4j:' + n.id, type, label: neo4jNodeLabel(label, props, n.key), props: Object.assign({}, props),
+          records: [], source: 'neo4j', neo4jLabel: label, neo4jLabels: Array.isArray(n.labels) ? n.labels : [label],
+          known: n.known !== false && !!NEO4J_TYPE_OF[label], stableId: !!n.stableId, key: n.key, apiId: n.id, derived: {} };
+        byApiId[n.id] = node; nodes.push(node);
+      });
+      let skipped = 0;
+      (data.relationships || []).forEach(r => {
+        const a = r && byApiId[r.source], b = r && byApiId[r.target];
+        if (!a || !b || !r.type) { skipped++; return; }
+        edges.push({ id: 'n4j-e:' + r.id, from: a.id, to: b.id, type: r.type, props: Object.assign({}, r.properties || {}),
+          provenance: 'Recorded', known: r.known !== false, records: [], apiId: r.id });
+      });
+      const G = { nodes, edges };
+      indexGraph(G);
+      const o = (id, t) => G.out[id].filter(e => e.type === t).map(e => G.byId[e.to]);
+      const i_ = (id, t) => G.in[id].filter(e => e.type === t).map(e => G.byId[e.from]);
+      // Display only: which synced procurement(s) each node takes part in (by recorded paths), and amounts.
+      nodes.filter(n => n.neo4jLabel === 'Procurement').forEach(p => {
+        const ref = p.props.referenceNo || p.apiId;
+        const bids = i_(p.id, 'FOR_PROCUREMENT'), awards = i_(p.id, 'AWARDS');
+        const sups = bids.flatMap(b => i_(b.id, 'SUBMITTED')).concat(awards.flatMap(a => o(a.id, 'AWARDED_TO')));
+        [p, ...o(p.id, 'PROCURED_BY'), ...o(p.id, 'IN_CATEGORY'), ...o(p.id, 'USES_MODE'), ...i_(p.id, 'NOTICE_FOR'), ...bids,
+          ...i_(p.id, 'RESOLVES'), ...awards, ...sups, ...awards.flatMap(a => o(a.id, 'UNDER_CONTRACT')),
+          ...awards.flatMap(a => o(a.id, 'CERTIFIED_BY')), ...sups.flatMap(s => o(s.id, 'REPRESENTED_BY'))]
+          .forEach(n => { if (n) pushUnique(n.records, ref); });
+        const amounts = awards.map(a => a.props.awardedAmount).filter(v => typeof v === 'number');
+        p.derived.awards = awards.length;
+        p.derived.awarded = amounts.reduce((t, v) => t + v, 0);
+        p.derived.pctOfAbc = typeof p.props.abc === 'number' && p.props.abc > 0 && amounts.length ? p.derived.awarded / p.props.abc * 100 : null;
+      });
+      G.meta = neo4jMeta(data);
+      G.meta.skippedEdges = skipped;
+      return G;
+    }
+
+    // Deterministic layered layout; each node sits under the procurement(s) it is recorded with.
+    function computeNeo4jLayout(G, types, title) {
+      const keep = types ? new Set(types) : null;
+      const nodes = G.nodes.filter(n => !keep || keep.has(n.type));
+      if (!nodes.length) return emptyKGLayout();
+      const ids = new Set(nodes.map(n => n.id));
+      const edges = G.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+      const P = {};
+      const projects = nodes.filter(n => n.type === 'Project').sort((a, b) => (Number(a.props.procurementId) || 0) - (Number(b.props.procurementId) || 0) || a.id.localeCompare(b.id));
+      const GAP = 240, X0 = 120;
+      const mid = X0 + Math.max(0, projects.length - 1) * GAP / 2;
+      const xOfRef = {};
+      projects.forEach((p, i) => { P[p.id] = { x: X0 + i * GAP, y: NEO4J_LAYER_ROW.Project }; xOfRef[p.props.referenceNo || p.apiId] = X0 + i * GAP; });
+      const slots = {};
+      nodes.filter(n => n.type !== 'Project').sort((a, b) => a.id.localeCompare(b.id)).forEach(n => {
+        const xs = n.records.map(r => xOfRef[r]).filter(v => v != null);
+        const x = xs.length ? xs.reduce((t, v) => t + v, 0) / xs.length : mid;
+        const y = NEO4J_LAYER_ROW[n.type] || 1150;
+        const slot = n.type + '|' + Math.round(x);
+        const k = slots[slot] = (slots[slot] == null ? 0 : slots[slot] + 1);
+        const shift = n.type === 'AwardNotice' ? 45 : n.type === 'Resolution' ? -45 : 0;
+        P[n.id] = { x: x + shift + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 62, y: y + (k > 3 ? 26 : 0) };
+      });
+      const pos = forceLayout(nodes, [], () => ({ x: mid, y: 600 }), { iters: 0, init: P, collide: 44 });   // collision pass only
+      const core = nodes.filter(n => n.type !== 'Mode' && n.type !== 'Location').map(n => n.id);
+      const halo = Object.assign(boundsOf(pos, core.length ? core : nodes.map(n => n.id), { l: 80, r: 80, t: 64, b: 70 }),
+        { title: title || 'Synced City Sample Data · Neo4j snapshot · recorded relationships only' });
+      const nb = boundsOf(pos, nodes.map(n => n.id), { l: 90, r: 90, t: 70, b: 80 });
+      const x0 = Math.min(nb.x, halo.x) - 20, y0 = Math.min(nb.y, halo.y) - 20;
+      const x1 = Math.max(nb.x + nb.w, halo.x + halo.w) + 20, y1 = Math.max(nb.y + nb.h, halo.y + halo.h) + 20;
+      return { nodes, edges, pos, halos: [halo], decor: [], vb: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
+    }
+    // Supplier view in Neo4j mode: suppliers, bids, award notices, procurements and entities with their RECORDED links only.
+    const NEO4J_SUPPLIER_TYPES = ['Agency', 'Project', 'Bid', 'AwardNotice', 'Supplier'];
+    function computeNeo4jLayouts(G) {
+      return { graph: computeNeo4jLayout(G),
+        suppliers: computeNeo4jLayout(G, NEO4J_SUPPLIER_TYPES, 'Who supplies which entity · recorded bids and awards only (Neo4j snapshot)') };
+    }
+    const EMPTY_NEO4J_KG = (() => { const G = { nodes: [], edges: [] }; indexGraph(G); G.meta = neo4jMeta(null); return G; })();
+    const EMPTY_NEO4J_LAYOUTS = { graph: emptyKGLayout(), suppliers: emptyKGLayout() };
+
     /* ---------- Graph traversal helpers ---------- */
     const nbOut = (id, type) => KG.out[id].filter(e => e.type === type).map(e => KG.byId[e.to]);
     const nbIn = (id, type) => KG.in[id].filter(e => e.type === type).map(e => KG.byId[e.from]);
@@ -1682,8 +1880,8 @@
     }
     const agencyOfNotice = an => { const pj = nbOut(an.id, 'FOR_PROJECT')[0]; return { pj, ag: pj && nbOut(pj.id, 'PROCURED_BY')[0] }; };
     function nodeLabel(n) {
-      if (n.type === 'AwardNotice') return 'NOA ' + n.props.noticeNo + (n.props.lotNo ? ' · Lot ' + n.props.lotNo : '');
-      if (n.type === 'Contract') return n.props.contractNo;
+      if (n.type === 'AwardNotice' && n.props.noticeNo != null) return 'NOA ' + n.props.noticeNo + (n.props.lotNo ? ' · Lot ' + n.props.lotNo : '');
+      if (n.type === 'Contract' && n.props.contractNo != null) return n.props.contractNo;
       if (n.type === 'Project' && n.props.referenceNo) return n.props.referenceNo;   // Sample City Graph: reference number
       return n.label;
     }
@@ -1880,6 +2078,95 @@
       }
     ];
 
+    /* ---------- Neo4j - Synced City Data queries (recorded relationships only; evaluated on the loaded snapshot) ---------- */
+    const n4jRef = p => (p ? (p.props.referenceNo || nodeLabel(p)) : '—');
+    const n4jSum = arr => arr.reduce((t, a) => t + (typeof a.props.awardedAmount === 'number' ? a.props.awardedAmount : 0), 0);
+    const NEO4J_QUERIES = [
+      {
+        id: 'neo-award-path', icon: 'fa-route', title: 'Recorded award paths (award, bid, resolution, contract)',
+        cypher: 'MATCH (n:AwardNotice)-[:AWARDS]->(p:Procurement)\nMATCH (n)-[:AWARDED_TO]->(s:Supplier)\nOPTIONAL MATCH (n)-[:BASED_ON_BID]->(b:Bid)<-[:SUBMITTED]-(bs:Supplier)\nOPTIONAL MATCH (n)-[:BASED_ON_RESOLUTION]->(r:BacResolution)\nOPTIONAL MATCH (n)-[:UNDER_CONTRACT]->(c:Contract)\nRETURN n.noticeNo, p.referenceNo, s.name, b.bidId,\n       bs = s AS bidBySameSupplier, r.resolutionNo, c.contractNo',
+        run() {
+          const hl = new Set(), rows = [];
+          KG.nodes.filter(n => n.neo4jLabel === 'AwardNotice').sort((a, b) => nodeLabel(a).localeCompare(nodeLabel(b))).forEach(an => {
+            const pj = nbOut(an.id, 'AWARDS')[0], sups = nbOut(an.id, 'AWARDED_TO'), bids = nbOut(an.id, 'BASED_ON_BID');
+            const res = nbOut(an.id, 'BASED_ON_RESOLUTION'), cts = nbOut(an.id, 'UNDER_CONTRACT');
+            const bidders = uniqNodes(bids.flatMap(b => nbIn(b.id, 'SUBMITTED')));
+            const same = bids.length ? (bidders.length && bidders.every(x => sups.some(s => s.id === x.id)) ? 'Yes' : 'No') : '—';
+            hlPath(hl, [pj && pj.id, an.id]); sups.forEach(s => hlPath(hl, [an.id, s.id]));
+            bids.forEach(b => { hlPath(hl, [an.id, b.id]); bidders.forEach(s => hlPath(hl, [b.id, s.id])); });
+            res.forEach(r => hlPath(hl, [an.id, r.id])); cts.forEach(c => hlPath(hl, [an.id, c.id]));
+            rows.push({ goto: an.id, same, full: !!(bids.length && res.length && cts.length),
+              cells: [an.props.noticeNo || nodeLabel(an), n4jRef(pj), sups.map(s => s.label).join('; ') || '—',
+                bids.map(b => nodeLabel(b)).join('; ') || '—', same, res.map(r => r.label).join('; ') || '—', cts.map(c => nodeLabel(c)).join('; ') || '—'] });
+          });
+          const full = rows.filter(r => r.full).length, mismatch = rows.filter(r => r.same === 'No').length;
+          return { cols: ['Award notice', 'Procurement', 'Awarded to', 'Based on bid', 'Bid by awarded supplier', 'Based on resolution', 'Contract'], rows, hl,
+            finding: rows.length + ' award notice' + (rows.length === 1 ? '' : 's') + ' in the snapshot; ' + full + ' record a bid, a BAC resolution and a contract. '
+              + (mismatch ? mismatch + ' award(s) are based on a bid submitted by a different supplier than the awardee.' : 'Every recorded bid behind an award was submitted by the awarded supplier.')
+              + ' Only recorded relationships are used.' };
+        }
+      },
+      {
+        id: 'neo-procurements', icon: 'fa-inbox', title: 'Bid notices, bids, resolutions and awards per procurement',
+        cypher: 'MATCH (p:Procurement)\nOPTIONAL MATCH (bn:BidNotice)-[:NOTICE_FOR]->(p)\nOPTIONAL MATCH (b:Bid)-[:FOR_PROCUREMENT]->(p)\nOPTIONAL MATCH (r:BacResolution)-[:RESOLVES]->(p)\nOPTIONAL MATCH (n:AwardNotice)-[:AWARDS]->(p)\nRETURN p.referenceNo, p.status, count(DISTINCT bn) AS notices,\n       count(DISTINCT b) AS bids, count(DISTINCT r) AS resolutions,\n       count(DISTINCT n) AS awards',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.neo4jLabel === 'Procurement').sort((a, b) => (Number(a.props.procurementId) || 0) - (Number(b.props.procurementId) || 0)).map(p => {
+            const ns = nbIn(p.id, 'NOTICE_FOR'), bids = nbIn(p.id, 'FOR_PROCUREMENT'), res = nbIn(p.id, 'RESOLVES'), ans = nbIn(p.id, 'AWARDS');
+            [...ns, ...bids, ...res, ...ans].forEach(x => hlPath(hl, [x.id, p.id]));
+            const aw = uniqNodes(ans.flatMap(a => nbOut(a.id, 'AWARDED_TO')));
+            return { goto: p.id, cells: [n4jRef(p), p.props.status || '—', String(ns.length), String(bids.length), String(res.length), String(ans.length), aw.map(s => s.label).join('; ') || '—'] };
+          });
+          return { cols: ['Procurement', 'Stage', 'Bid notices', 'Bids', 'Resolutions', 'Award notices', 'Awarded to'], rows, hl,
+            finding: rows.length + ' synced procurements; ' + rows.filter(r => r.cells[3] !== '0').length + ' have recorded bids and ' + rows.filter(r => r.cells[5] !== '0').length + ' have an award notice.' };
+        }
+      },
+      {
+        id: 'neo-suppliers', icon: 'fa-truck-ramp-box', title: 'Bids and awards per supplier',
+        cypher: 'MATCH (s:Supplier)\nOPTIONAL MATCH (s)-[:SUBMITTED]->(b:Bid)\nOPTIONAL MATCH (:BacResolution)-[:RECOMMENDS]->(rb:Bid)<-[:SUBMITTED]-(s)\nOPTIONAL MATCH (n:AwardNotice)-[:AWARDED_TO]->(s)\nRETURN s.name, count(DISTINCT b) AS bids, count(DISTINCT rb) AS recommended,\n       count(DISTINCT n) AS awards, sum(n.awardedAmount) AS total',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.neo4jLabel === 'Supplier').map(s => {
+            const bids = nbOut(s.id, 'SUBMITTED'), rec = bids.filter(b => nbIn(b.id, 'RECOMMENDS').length), ans = nbIn(s.id, 'AWARDED_TO');
+            if (ans.length) { hl.add(s.id); ans.forEach(a => hlPath(hl, [s.id, a.id, (nbOut(a.id, 'AWARDS')[0] || {}).id])); }
+            return { goto: s.id, n: bids.length, cells: [s.label, String(bids.length), String(rec.length), String(ans.length), ans.length ? peso(n4jSum(ans)) : '—'] };
+          }).sort((a, b) => (b.n - a.n) || a.cells[0].localeCompare(b.cells[0]));
+          return { cols: ['Supplier', 'Bids', 'Recommended bids', 'Awards', 'Total awarded'], rows, hl,
+            finding: rows.filter(r => r.n > 0).length + ' suppliers have recorded bids; ' + rows.filter(r => r.cells[3] !== '0').length + ' hold award notices (highlighted).' };
+        }
+      },
+      {
+        id: 'neo-abc', icon: 'fa-scale-balanced', title: 'Awarded amount vs ABC',
+        cypher: 'MATCH (n:AwardNotice)-[:AWARDS]->(p:Procurement)\nWITH p, sum(n.awardedAmount) AS awarded\nRETURN p.referenceNo, p.abc, awarded,\n       round(100.0 * awarded / p.abc, 1) AS pctOfABC\nORDER BY pctOfABC',
+        run() {
+          const hl = new Set();
+          const ps = KG.nodes.filter(n => n.neo4jLabel === 'Procurement' && n.derived.pctOfAbc != null).sort((a, b) => a.derived.pctOfAbc - b.derived.pctOfAbc);
+          const rows = ps.map(p => {
+            hl.add(p.id); nbIn(p.id, 'AWARDS').forEach(an => hlPath(hl, [p.id, an.id]));
+            return { goto: p.id, cells: [n4jRef(p), peso(p.props.abc), peso(p.derived.awarded), p.derived.pctOfAbc.toFixed(1) + '%'] };
+          });
+          const over = ps.filter(p => p.derived.pctOfAbc > 100).length;
+          return { cols: ['Procurement', 'ABC', 'Awarded', '% of ABC'], rows, hl,
+            finding: rows.length ? (over ? over + ' awarded procurement(s) exceed the ABC.' : 'All ' + rows.length + ' awarded procurements are within their ABC.') : 'No synced procurement has an award notice with an amount.' };
+        }
+      },
+      {
+        id: 'neo-resolutions', icon: 'fa-gavel', title: 'BAC resolutions and recommended bids',
+        cypher: 'MATCH (r:BacResolution)-[:RESOLVES]->(p:Procurement)\nOPTIONAL MATCH (r)-[:RECOMMENDS]->(b:Bid)<-[:SUBMITTED]-(s:Supplier)\nRETURN r.resolutionNo, p.referenceNo, r.recommendation,\n       s.name, b.amount, b.rankNo',
+        run() {
+          const hl = new Set();
+          const rows = KG.nodes.filter(n => n.neo4jLabel === 'BacResolution').sort((a, b) => a.label.localeCompare(b.label)).map(r => {
+            const pj = nbOut(r.id, 'RESOLVES')[0], b = nbOut(r.id, 'RECOMMENDS')[0], s = b && nbIn(b.id, 'SUBMITTED')[0];
+            hlPath(hl, [pj && pj.id, r.id, b && b.id, s && s.id]);
+            return { goto: r.id, cells: [r.props.resolutionNo || r.label, n4jRef(pj), SAMPLE_BASIS[r.props.recommendation] || r.props.recommendation || '—',
+              s ? s.label : '—', b && typeof b.props.amount === 'number' ? peso(b.props.amount) : '—', b && b.props.rankNo != null ? String(b.props.rankNo) : '—'] };
+          });
+          return { cols: ['Resolution', 'Procurement', 'Recommendation', 'Recommended bidder', 'Bid amount', 'Bid rank'], rows, hl,
+            finding: rows.length + ' BAC resolutions recorded; ' + rows.filter(r => r.cells[3] !== '—').length + ' recommend a recorded bid. The recommendation is the RECOMMENDS relationship, not the bid ranking.' };
+        }
+      }
+    ];
+
     const ROLE_KEYS = { 'BAC Secretariat': 'secretariat', 'BAC Member': 'member', 'Super Admin': 'admin' };
     const ROLE_HELP = {
       'BAC Secretariat': 'Encodes PRs, posts ITB/RFQ notices, logs bids, issues NOAs and prepares the PMR.',
@@ -1952,6 +2239,15 @@
         this._sampleRequest = 0;           // ignores out-of-order responses
         this._sampleTrailCache = {};
         this.sampleTrailAward = null;
+
+        // Neo4j - Synced City Data (GET /api/graph/neo4j, signed-in staff only). Read-only snapshot of the last sync.
+        this.neo4jKG = null;
+        this.neo4jLayouts = null;
+        this._neo4jState = 'idle';         // idle | loading | loaded | error
+        this._neo4jError = null;           // { status, state, message } from the server when not loaded
+        this._neo4jRequest = 0;            // ignores out-of-order responses
+        this._neo4jTrailCache = {};
+        this.neo4jTrailAward = null;
 
         this.bindEvents();
         this.updateRoleHelp();
@@ -2382,6 +2678,13 @@
         this._sampleRequest++;
         this._sampleTrailCache = {};
         this.sampleTrailAward = null;
+        this.neo4jKG = null;                            // the Neo4j snapshot is internal data too
+        this.neo4jLayouts = null;
+        this._neo4jState = 'idle';
+        this._neo4jError = null;
+        this._neo4jRequest++;
+        this._neo4jTrailCache = {};
+        this.neo4jTrailAward = null;
         this.activateKGMode('sample');
         this.renderRegistry();
         this.renderArchived();
@@ -2460,14 +2763,16 @@
 
       /* ----- Graph data: Sample City Graph or PhilGEPS reference (never mixed) ----- */
       kgQueries() {
+        if (this.kgMode === 'neo4j') return NEO4J_QUERIES;
         return this.kgMode === 'sample' ? SAMPLE_QUERIES : KG_QUERIES;
       }
 
       activateKGMode(mode) {
-        this.kgMode = mode === 'reference' ? 'reference' : 'sample';
-        const sample = this.kgMode === 'sample';
-        KG = sample ? (this.sampleKG || EMPTY_SAMPLE_KG) : REF_KG;
-        this.layouts = sample ? (this.sampleLayouts || EMPTY_SAMPLE_LAYOUTS) : this.refLayouts;
+        this.kgMode = mode === 'reference' ? 'reference' : mode === 'neo4j' ? 'neo4j' : 'sample';
+        const sample = this.kgMode === 'sample', neo = this.kgMode === 'neo4j';
+        // Each mode shows only its own graph. Neo4j mode never falls back to MariaDB or the sample graph.
+        KG = neo ? (this.neo4jKG || EMPTY_NEO4J_KG) : sample ? (this.sampleKG || EMPTY_SAMPLE_KG) : REF_KG;
+        this.layouts = neo ? (this.neo4jLayouts || EMPTY_NEO4J_LAYOUTS) : sample ? (this.sampleLayouts || EMPTY_SAMPLE_LAYOUTS) : this.refLayouts;
         this.kgSel = null; this.kgHL = null; this.kgQuery = null;
         this.kgT = { k: 1, x: 0, y: 0 };
         const search = document.getElementById('graph-search'); if (search) search.value = '';
@@ -2478,26 +2783,43 @@
         this.syncViewTabs();
         this.renderKG();
         if (KG.nodes.length) this.renderInspectorOverview();
+        else if (neo) document.getElementById('inspector-body').innerHTML = '<p class="text-xs text-gray-500">No Neo4j graph is loaded. <span class="demo-pill neo-pill">Synced City Sample Data</span></p>';
         else document.getElementById('inspector-body').innerHTML = '<p class="text-xs text-gray-500">No sample graph is loaded. <span class="demo-pill">Sample Data</span></p>';
+        if (neo && this._neo4jState === 'idle' && this.roleKey && this.roleKey !== 'public') this.loadNeo4jGraph();
       }
 
       // Everything on the page that depends on which graph is shown.
       renderKGChrome() {
-        const sample = this.kgMode === 'sample', M = KG.meta;
+        const sample = this.kgMode === 'sample', neo = this.kgMode === 'neo4j', M = KG.meta;
         document.querySelectorAll('.kg-mode').forEach(b => {
           const on = b.getAttribute('data-kg-mode') === this.kgMode;
           b.classList.toggle('active-dataset', on);
           b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
-        document.getElementById('kg-ref-desc').classList.toggle('hidden', sample);
+        document.getElementById('kg-ref-desc').classList.toggle('hidden', this.kgMode !== 'reference');
         document.getElementById('kg-sample-desc').classList.toggle('hidden', !sample);
+        document.getElementById('kg-neo4j-desc').classList.toggle('hidden', !neo);
+        if (neo) {
+          document.getElementById('kg-neo4j-label').textContent = M.dataLabel;
+          document.getElementById('kg-neo4j-synced').textContent = this._neo4jState === 'loaded'
+            ? 'Last sync: ' + M.syncedText + (M.sync && M.sync.verificationOk === true ? ' · read-back verified at sync'
+              : M.sync && M.sync.verificationOk === false ? ' · read-back did NOT match MariaDB at that sync' : '')
+            : 'Last sync: not loaded';
+        }
         document.getElementById('kg-sample-label').textContent = sample ? M.dataLabel : 'Sample Data';
         document.getElementById('kg-inspector-source').textContent = M.inspectorSource;
-        document.getElementById('kg-trail-label').textContent = sample ? 'Award notice' : 'Contract';
-        document.getElementById('kg-trail-sub').textContent = sample ? 'One sample award, end to end' : 'One contract, end to end';
+        document.getElementById('kg-trail-label').textContent = sample || neo ? 'Award notice' : 'Contract';
+        document.getElementById('kg-trail-sub').textContent = neo ? 'One synced award, recorded path' : sample ? 'One sample award, end to end' : 'One contract, end to end';
 
         // Audit Trail options
-        if (sample) {
+        if (neo) {
+          const awards = KG.nodes.filter(n => n.neo4jLabel === 'AwardNotice').sort((a, b) => nodeLabel(a).localeCompare(nodeLabel(b)));
+          if (!awards.some(a => a.id === this.neo4jTrailAward)) this.neo4jTrailAward = awards.length ? awards[0].id : null;
+          document.getElementById('kg-trail-select').innerHTML = awards.map(an => {
+            const pj = nbOut(an.id, 'AWARDS')[0];
+            return `<option value="${esc(an.id)}" ${an.id === this.neo4jTrailAward ? 'selected' : ''}>${esc(an.props.noticeNo || nodeLabel(an))} — ${esc(pj ? (pj.props.referenceNo || pj.label) : '(no AWARDS link)')}</option>`;
+          }).join('');
+        } else if (sample) {
           const awards = KG.nodes.filter(n => n.type === 'AwardNotice').sort((a, b) => a.props.noticeNo.localeCompare(b.props.noticeNo));
           if (!awards.some(a => a.id === this.sampleTrailAward)) this.sampleTrailAward = awards.length ? awards[0].id : null;
           document.getElementById('kg-trail-select').innerHTML = awards.map(an => {
@@ -2514,19 +2836,34 @@
 
         // Legend: only the node types present in the shown graph
         const present = new Set(KG.nodes.map(n => n.type));
-        document.getElementById('kg-legend').innerHTML = (sample ? `<span class="demo-pill">${esc(M.dataLabel)}</span>` : '')
-          + Object.keys(NODE_TYPES).filter(t => !sample || present.has(t)).filter(t => sample || t !== 'Resolution').map(t => {
+        document.getElementById('kg-legend').innerHTML = (sample ? `<span class="demo-pill">${esc(M.dataLabel)}</span>` : neo ? `<span class="demo-pill neo-pill">${esc(M.dataLabel)}</span>` : '')
+          + Object.keys(NODE_TYPES).filter(t => !(sample || neo) || present.has(t)).filter(t => sample || neo || REF_NODE_TYPES.includes(t)).map(t => {
             const T = NODE_TYPES[t];
             return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${T.color}"></span>${esc(T.label)}</span>`;
-          }).join('') + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#64748b" stroke-width="2"/></svg>Recorded</span>`
-          + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#d97706" stroke-width="2" stroke-dasharray="4 3"/></svg>Inferred</span>`;
+          }).join('') + `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#64748b" stroke-width="2"/></svg>${neo ? 'Recorded in Neo4j (no inferred links)' : 'Recorded'}</span>`
+          + (neo ? '' : `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-gray-200 bg-white font-semibold text-gray-700"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#d97706" stroke-width="2" stroke-dasharray="4 3"/></svg>Inferred</span>`);
 
         // Statistics chips
         const recorded = KG.edges.filter(e => e.provenance !== 'Inferred').length;
         const inferred = KG.edges.length - recorded;
         const merged = KG.nodes.filter(n => n.records.length > 1).length;
         const chip = ([i, t]) => `<span class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 font-semibold px-2 py-0.5 rounded-full"><i class="fa-solid ${i} text-[#A60E0D]"></i>${esc(t)}</span>`;
-        if (sample) {
+        if (neo) {
+          const byLabel = l => KG.nodes.filter(n => n.neo4jLabel === l).length;
+          const unmapped = KG.nodes.filter(n => !n.known || !n.stableId).length;
+          const unknownRels = [...new Set(KG.edges.filter(e => !e.known).map(e => e.type))];
+          document.getElementById('kg-ingest').innerHTML = `<span class="demo-pill neo-pill">${esc(M.dataLabel)}</span>` + (KG.nodes.length ? [
+            ['fa-file-lines', byLabel('Procurement') + ' synced procurements'],
+            ['fa-truck-ramp-box', byLabel('Supplier') + ' synced suppliers'],
+            ['fa-circle-nodes', KG.nodes.length + ' Neo4j nodes'],
+            ['fa-arrow-right-arrow-left', recorded + ' recorded relationships'],
+            ['fa-ban', 'No inferred links (recorded only)'],
+            ['fa-clock-rotate-left', 'Snapshot: ' + M.syncedText]
+          ].concat(unmapped ? [['fa-circle-question', unmapped + ' node(s) with an unmapped label or key']] : [])
+           .concat(unknownRels.length ? [['fa-circle-question', 'Relationship types not in the schema: ' + unknownRels.join(', ')]] : [])
+           .concat(M.skippedEdges ? [['fa-triangle-exclamation', M.skippedEdges + ' relationship(s) without both end nodes not drawn']] : [])
+           .map(chip).join('') : '');
+        } else if (sample) {
           const count = t => KG.nodes.filter(n => n.type === t).length;
           document.getElementById('kg-ingest').innerHTML = `<span class="demo-pill">${esc(M.dataLabel)}</span>` + (KG.nodes.length ? [
             ['fa-file-lines', count('Project') + ' sample procurements'],
@@ -2565,12 +2902,23 @@
           else if (st !== 'loaded') msg = 'Sign in as BAC staff to load the sample graph.';
           else if (!KG.nodes.length) msg = 'No sample records are available.';
           else if (this.kgView === 'trail' && !this.sampleTrailAward) msg = 'No sample award notice to trace.';
+        } else if (this.kgMode === 'neo4j') {
+          const st = this._neo4jState, err = this._neo4jError;
+          if (st === 'loading') msg = 'Loading the Neo4j graph...';
+          else if (st === 'error') {
+            msg = 'The Neo4j graph could not be loaded. ' + ((err && err.message) || 'The server did not return the graph.')
+              + ' Nothing from the Sample City Graph or MariaDB is shown instead.';
+            retry = true;
+          }
+          else if (st !== 'loaded') msg = 'Sign in as BAC staff to load the Neo4j graph.';
+          else if (!KG.nodes.length) msg = 'The synced Neo4j graph is empty (last sync: ' + KG.meta.syncedText + ').';
+          else if (this.kgView === 'trail' && !this.neo4jTrailAward) msg = 'No synced award notice to trace.';
         }
         box.classList.toggle('hidden', !msg);
         box.classList.toggle('flex', !!msg);
         box.innerHTML = msg ? `<div class="pointer-events-auto bg-white/95 border border-amber-200 shadow-sm rounded-lg px-4 py-3 text-xs text-gray-700 flex flex-wrap items-center gap-2 max-w-md">
-            <span class="demo-pill">Sample Data</span><span>${esc(msg)}</span>
-            ${retry ? '<button type="button" onclick="window.workspaceManager.loadSampleGraph()" class="font-semibold text-[#A60E0D] underline cursor-pointer">Try again</button>' : ''}
+            ${this.kgMode === 'neo4j' ? '<span class="demo-pill neo-pill">Neo4j snapshot</span>' : '<span class="demo-pill">Sample Data</span>'}<span>${esc(msg)}</span>
+            ${retry ? `<button type="button" onclick="window.workspaceManager.${this.kgMode === 'neo4j' ? 'loadNeo4jGraph' : 'loadSampleGraph'}()" class="font-semibold text-[#A60E0D] underline cursor-pointer">Try again</button>` : ''}
           </div>` : '';
       }
 
@@ -2680,6 +3028,175 @@
         this.showToast('Sample graph exported (' + G.nodes.length + ' nodes, ' + G.edges.length + ' relationships; ' + M.dataLabel + ', fictional records).', 'ok');
       }
 
+      // GET /api/graph/neo4j - signed-in staff only. Read-only snapshot of the last MariaDB -> Neo4j synchronization.
+      // On any failure the Neo4j mode shows the error; it never falls back to MariaDB or the Sample City Graph.
+      async loadNeo4jGraph() {
+        if (!this.roleKey || this.roleKey === 'public') return;
+        const request = ++this._neo4jRequest;
+        this._neo4jState = 'loading';
+        this._neo4jError = null;
+        if (this.kgMode === 'neo4j') this.renderKGStatus();
+        let response, result;
+        try {
+          response = await fetch('/api/graph/neo4j', { credentials: 'same-origin' });
+          result = await response.json().catch(() => ({}));
+        } catch (error) {
+          if (request !== this._neo4jRequest) return;
+          console.error('Failed to load the Neo4j graph:', error);
+          this.neo4jFailed({ status: 0, state: 'network', message: 'The server could not be reached.' });
+          return;
+        }
+        if (request !== this._neo4jRequest) return;
+        if (response.status === 401) {
+          this.handleSessionExpired(result.message || 'Your session expired. Please sign in again.');
+          return;
+        }
+        const sources = Array.isArray(result.dataSources) ? result.dataSources : null;
+        const sampleOnly = !!sources && sources.every(x => x === 'sample');
+        if (!response.ok || result.status !== 'success' || result.source !== 'neo4j' || result.snapshot !== true || !sampleOnly
+            || !Array.isArray(result.nodes) || !Array.isArray(result.relationships)) {
+          const msg = typeof result.message === 'string' && result.message ? result.message
+            : (response.ok ? 'The response was not a Neo4j snapshot of sample records.' : 'HTTP ' + response.status + '.');
+          this.neo4jFailed({ status: response.status, state: result.neo4j || 'error', message: msg });
+          return;
+        }
+        let G, layouts;
+        try {
+          G = buildNeo4jGraph(result);
+          layouts = computeNeo4jLayouts(G);
+        } catch (error) {
+          console.error('Could not build the Neo4j graph:', error);
+          this.neo4jFailed({ status: response.status, state: 'display', message: 'The graph was received but could not be displayed.' });
+          return;
+        }
+        this.neo4jKG = G;
+        this.neo4jLayouts = layouts;
+        this._neo4jTrailCache = {};
+        this.neo4jTrailAward = null;
+        this._neo4jState = 'loaded';
+        console.log('Neo4j graph loaded:', G.nodes.length, 'nodes,', G.edges.length, 'relationships (snapshot, last sync ' + G.meta.syncedText + ')');
+        if (this.kgMode === 'neo4j') this.activateKGMode('neo4j');
+      }
+
+      neo4jFailed(err) {
+        this.neo4jKG = null;                 // no stale or substitute graph is kept
+        this.neo4jLayouts = null;
+        this._neo4jTrailCache = {};
+        this._neo4jState = 'error';
+        this._neo4jError = err;
+        console.info('Neo4j graph not loaded (HTTP ' + err.status + ', ' + err.state + ').');
+        if (this.kgMode === 'neo4j') this.activateKGMode('neo4j');
+      }
+
+      // Audit Trail Lens for one synced award: only the recorded path
+      // (AWARDS, AWARDED_TO, BASED_ON_BID, BASED_ON_RESOLUTION, UNDER_CONTRACT, CERTIFIED_BY, REPRESENTED_BY).
+      neo4jTrailData(aid) {
+        if (!aid || !KG.byId[aid]) return emptyKGLayout();
+        if (this._neo4jTrailCache[aid]) return this._neo4jTrailCache[aid];
+        const an = KG.byId[aid];
+        const pjs = nbOut(aid, 'AWARDS');
+        const ags = uniqNodes(pjs.flatMap(p => nbOut(p.id, 'PROCURED_BY')));
+        const bids = nbOut(aid, 'BASED_ON_BID');
+        const bidNotices = uniqNodes(bids.flatMap(b => nbOut(b.id, 'UNDER_NOTICE')));
+        const notices = bidNotices.length ? bidNotices : uniqNodes(pjs.flatMap(p => nbIn(p.id, 'NOTICE_FOR')));
+        const res = nbOut(aid, 'BASED_ON_RESOLUTION');
+        const cts = nbOut(aid, 'UNDER_CONTRACT');
+        const sups = nbOut(aid, 'AWARDED_TO');
+        const reps = uniqNodes(sups.flatMap(s => nbOut(s.id, 'REPRESENTED_BY')));
+        const certs = nbOut(aid, 'CERTIFIED_BY');
+        const cats = uniqNodes(pjs.flatMap(p => nbOut(p.id, 'IN_CATEGORY'))), modes = uniqNodes(pjs.flatMap(p => nbOut(p.id, 'USES_MODE')));
+        const others = uniqNodes(pjs.flatMap(p => nbIn(p.id, 'FOR_PROCUREMENT'))).filter(b => !bids.some(x => x.id === b.id));
+        const steps = [[ags, 'Procuring Entity', 'PROCURED_BY'], [pjs, 'Procurement', 'AWARDS'],
+          [notices, 'Bid Notice', bidNotices.length ? 'UNDER_NOTICE' : 'NOTICE_FOR'], [bids, 'Awarded Bid', 'BASED_ON_BID'],
+          [res, 'BAC Resolution', 'BASED_ON_RESOLUTION'], [[an], 'Award Notice', ''], [cts, 'Contract', 'UNDER_CONTRACT'],
+          [sups, 'Supplier', 'AWARDED_TO'], [reps, 'Representative', 'REPRESENTED_BY']];
+        // Fixed, staggered positions per step so that no recorded line passes through another step's node.
+        const X = [80, 230, 380, 530, 680, 830, 980, 1130, 1280], Y = [300, 220, 330, 270, 380, 200, 330, 220, 320], SUB = 520, pos = {};
+        const col = (list, x, y, gap) => list.forEach((n, i) => { if (!pos[n.id]) pos[n.id] = { x, y: y + (i - (list.length - 1) / 2) * gap }; });
+        steps.forEach(([list], i) => col(list, X[i], Y[i], 70));
+        col(cats, 80, SUB, 0); col(modes, 200, SUB, 0); col(certs, 830, SUB, 0);
+        others.forEach((b, i) => { if (!pos[b.id]) pos[b.id] = { x: 330 + (i % 4) * 120, y: SUB + Math.floor(i / 4) * 80 }; });
+        const nodes = uniqNodes([...ags, ...pjs, ...notices, ...bids, ...res, an, ...cts, ...sups, ...reps, ...cats, ...modes, ...certs, ...others]);
+        const ids = new Set(nodes.map(n => n.id));
+        const edges = KG.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+        const W = 1360, H = 600 + Math.max(0, Math.ceil(others.length / 4) - 1) * 80;
+        const decor = [{ x: 20, y: 24, text: 'NEO4J SNAPSHOT · synced city sample data · recorded relationships only · last sync ' + KG.meta.syncedText, size: 10, weight: 800, fill: '#065f46', anchor: 'start' }]
+          .concat(steps.map(([, t], i) => ({ x: X[i], y: 46, text: 'STEP ' + (i + 1), size: 10, weight: 800, fill: '#A60E0D' })))
+          .concat(steps.map(([, t], i) => ({ x: X[i], y: 63, text: t, size: 11.5, weight: 700, fill: '#1f2937' })))
+          .concat(steps.map(([, , r], i) => ({ x: X[i], y: 78, text: r, size: 8.5, weight: 700, fill: '#64748b' })))
+          .concat(steps.map(([list], i) => (list.length ? null : { x: X[i], y: Y[i] + 4, text: '(none recorded)', size: 11, weight: 600, fill: '#94a3b8' })).filter(Boolean))
+          .concat([{ x: 20, y: 462, text: 'ATTRIBUTES, CERTIFYING OFFICIAL (CERTIFIED_BY) AND OTHER BIDS (FOR_PROCUREMENT)', size: 10, weight: 800, fill: '#64748b', anchor: 'start' }])
+          .concat([{ line: true, x1: 20, y1: 447, x2: W - 20, y2: 447 }]);
+        const data = { nodes, edges, pos, halos: [], decor, vb: { x: 0, y: 6, w: W, h: H }, allLabels: true };
+        this._neo4jTrailCache[aid] = data;
+        return data;
+      }
+
+      // Inspector facts for a Neo4j node: its actual Neo4j label and properties, nothing invented.
+      neo4jKgFacts(n) {
+        const P = n.props, f = [];
+        const fmt = (k, v) => {
+          if (v == null || v === '') return '—';
+          if (Array.isArray(v)) return v.map(x => String(x)).join('; ');
+          if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+          if (NEO4J_MONEY.has(k) && typeof v === 'number') return peso(v);
+          if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return fmtD(v);
+          if (typeof v === 'object') return JSON.stringify(v);
+          return String(v);
+        };
+        f.push(['Neo4j label', ':' + n.neo4jLabel + (n.known ? '' : ' (not in the documented schema)')]);
+        f.push(['Record key', n.stableId ? n.apiId : 'No stable key (shown as ' + n.apiId + ')']);
+        const keys = Object.keys(P).sort();
+        keys.forEach(k => f.push([k, fmt(k, P[k])]));
+        if (!keys.length) f.push(['Properties', 'None recorded']);
+        if (n.neo4jLabel === 'Procurement' && n.derived.awards) f.push(['Total awarded (via AWARDS)', peso(n.derived.awarded)]);
+        f.push(['Data source', 'Neo4j snapshot · last sync ' + KG.meta.syncedText]);
+        return f;
+      }
+
+      neo4jBudget(n) {
+        if (n.neo4jLabel === 'Procurement') {
+          return n.derived.awards && typeof n.props.abc === 'number' && n.derived.pctOfAbc != null
+            ? { abc: n.props.abc, amount: n.derived.awarded, label: 'Total awarded (AWARDS)' } : null;
+        }
+        if (n.neo4jLabel === 'AwardNotice') {
+          const pj = nbOut(n.id, 'AWARDS')[0];
+          return pj && typeof pj.props.abc === 'number' && typeof n.props.awardedAmount === 'number'
+            ? { abc: pj.props.abc, amount: n.props.awardedAmount, label: 'Awarded amount' } : null;
+        }
+        return null;
+      }
+
+      neo4jLabelRows() {
+        const counts = {};
+        KG.nodes.forEach(n => { counts[n.neo4jLabel] = (counts[n.neo4jLabel] || 0) + 1; });
+        const labels = Object.keys(NEO4J_TYPE_OF).filter(l => counts[l]).concat(Object.keys(counts).filter(l => !NEO4J_TYPE_OF[l]).sort());
+        return labels.map(l => this.inspectorRow((NEO4J_TYPE_OF[l] ? NODE_TYPES[NEO4J_TYPE_OF[l]].label : 'Unmapped label') + ' (:' + l + ')', String(counts[l]))).join('');
+      }
+
+      // CSV extract of the Neo4j snapshot, labelled as synced sample data (separate from the other two graphs).
+      exportNeo4jGraph() {
+        const G = this.neo4jKG;
+        if (!G || this._neo4jState !== 'loaded') {
+          this.showToast('The Neo4j graph is not loaded. Open "Neo4j – Synced City Data" and try again.', 'warn');
+          return;
+        }
+        const M = G.meta;
+        const rows = [['NEO4J SNAPSHOT: ' + (M.notice || 'Synced copy of the fictional sample procurement records; not live data.')],
+          ['Data label: ' + M.dataLabel + ' | Neo4j database: ' + (M.database || '—') + ' | Last sync: ' + M.syncedText + (M.sync && M.sync.lastSyncedAt ? ' (' + M.sync.lastSyncedAt + ')' : '')],
+          ['Only relationships recorded in Neo4j are listed; no inferred links.'], [],
+          ['NODES'], ['Node ID', 'Neo4j label', 'Display type', 'Label', 'Properties']];
+        G.nodes.forEach(n => rows.push([n.apiId, n.neo4jLabel, NODE_TYPES[n.type].label, n.label,
+          Object.keys(n.props).sort().map(k => k + ': ' + (Array.isArray(n.props[k]) ? n.props[k].join(' / ') : n.props[k])).join(' | ')]));
+        rows.push([]);
+        rows.push(['RELATIONSHIPS']);
+        rows.push(['Relationship ID', 'From (node ID)', 'Type', 'To (node ID)', 'Properties']);
+        G.edges.forEach(e => rows.push([e.apiId, G.byId[e.from].apiId, e.type, G.byId[e.to].apiId,
+          Object.keys(e.props || {}).sort().map(k => k + ': ' + e.props[k]).join(' | ')]));
+        this.downloadCSV('Neo4j_Synced_City_Graph.csv', rows);
+        this.showToast('Neo4j graph exported (' + G.nodes.length + ' nodes, ' + G.edges.length + ' recorded relationships; snapshot from ' + M.syncedText + ').', 'ok');
+      }
+
       bindGraphEvents() {
         const svg = document.getElementById('kg-svg');
 
@@ -2691,7 +3208,8 @@
         }));
         document.getElementById('kg-focus').addEventListener('change', e => { this.kgFocus = Number(e.target.value); this.renderKG(); });
         document.getElementById('kg-trail-select').addEventListener('change', e => {
-          if (this.kgMode === 'sample') this.sampleTrailAward = e.target.value; else this.trailContract = e.target.value;
+          if (this.kgMode === 'neo4j') this.neo4jTrailAward = e.target.value;
+          else if (this.kgMode === 'sample') this.sampleTrailAward = e.target.value; else this.trailContract = e.target.value;
           this.kgT = { k: 1, x: 0, y: 0 }; this.kgSel = null; this.renderKG(); this.renderInspectorOverview();
         });
         document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => this.zoomKG(b.getAttribute('data-zoom'))));
@@ -2813,7 +3331,10 @@
 
       kgViewData() {
         if (this.kgView === 'suppliers') return this.layouts.suppliers;
-        if (this.kgView === 'trail') return this.kgMode === 'sample' ? this.sampleTrailData(this.sampleTrailAward) : this.trailData(this.trailContract);
+        if (this.kgView === 'trail') {
+          if (this.kgMode === 'neo4j') return this.neo4jTrailData(this.neo4jTrailAward);
+          return this.kgMode === 'sample' ? this.sampleTrailData(this.sampleTrailAward) : this.trailData(this.trailContract);
+        }
         const L = this.layouts.graph, lay = this.kgLayers;
         const vis = n => !LAYER_OF[n.type] || lay[LAYER_OF[n.type]];
         const nodes = L.nodes.filter(vis);
@@ -2990,6 +3511,7 @@
 
       /* ----- Inspector ----- */
       kgFacts(n) {
+        if (KG.meta && KG.meta.mode === 'neo4j') return this.neo4jKgFacts(n);
         if (KG.meta && KG.meta.mode === 'sample') return this.sampleKgFacts(n);
         const P = n.props, f = [];
         const names = arr => arr.map(x => x.label).join('; ') || '—';
@@ -3145,6 +3667,7 @@
       }
 
       kgBudget(n) {
+        if (KG.meta && KG.meta.mode === 'neo4j') return this.neo4jBudget(n);
         if (n.type === 'Project' && KG.meta && KG.meta.mode === 'sample' && !n.props.awarded) return null;   // sample: not awarded yet
         if (n.type === 'Project') return { abc: n.props.abc, amount: n.props.awarded, label: 'Total awarded' };
         if (n.type === 'Contract') {
@@ -3191,7 +3714,7 @@
               <div id="inspect-title" class="font-bold text-gray-900 text-sm leading-snug break-words">${esc(n.label)}</div>
               <div class="mt-1.5 flex flex-wrap gap-1.5">
                 <span id="inspect-type" class="text-[10px] font-bold px-2 py-0.5 rounded border" style="color:${T.color};border-color:${T.color}55;background:${T.color}12">${esc(T.label)}</span>
-                <span class="text-[10px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded">:${esc(n.type)}</span>
+                <span class="text-[10px] font-mono text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded">:${esc(n.neo4jLabel || n.type)}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded border text-slate-700 bg-slate-50 border-slate-200">${degree} recorded link${degree === 1 ? '' : 's'}</span>
                 ${n.records.length > 1 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded border text-[#7a0908] bg-[#F2E503]/40 border-[#e5d400]">${esc(M.mergedBadge(n.records.length))}</span>` : ''}${M.nodeBadge}
               </div>
@@ -3271,7 +3794,7 @@
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100">
             <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">What this relationship means</h4>
-            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(M.edgeInfo[e.type] || EDGE_INFO[e.type] || '')}</p>
+            <p id="inspect-desc" class="text-xs text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 p-3 rounded-lg">${esc(M.edgeInfo[e.type] || (M.mode === 'neo4j' ? NEO4J_UNKNOWN_EDGE : EDGE_INFO[e.type]) || '')}</p>
           </div>`;
       }
 
@@ -3287,7 +3810,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-xs">
             <div class="min-w-0">
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Node types</h4>
-              <div class="divide-y divide-gray-100">${Object.keys(NODE_TYPES).filter(t => counts[t]).map(t => this.inspectorRow(NODE_TYPES[t].label + ' (:' + t + ')', String(counts[t]))).join('')}</div>
+              <div class="divide-y divide-gray-100">${M.mode === 'neo4j' ? this.neo4jLabelRows() : Object.keys(NODE_TYPES).filter(t => counts[t]).map(t => this.inspectorRow(NODE_TYPES[t].label + ' (:' + t + ')', String(counts[t]))).join('')}</div>
               <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-4 mb-1">Relationship types</h4>
               <div class="divide-y divide-gray-100">${Object.keys(relCounts).map(t => this.inspectorRow(':' + t, String(relCounts[t]))).join('')}</div>
             </div>
@@ -3355,7 +3878,7 @@
         this.kgQuery = null;
         document.getElementById('kg-query-result').innerHTML = '';
         document.querySelectorAll('.kg-query').forEach(b => b.classList.remove('border-[#A60E0D]', 'bg-red-50'));
-        const order = ['Supplier', 'Agency', 'Person', 'Project', 'Resolution', 'AwardNotice', 'Contract', 'Category', 'Mode', 'Location'];
+        const order = ['Supplier', 'Agency', 'Person', 'Project', 'Resolution', 'AwardNotice', 'Contract', 'Category', 'Mode', 'Location', 'BidNotice', 'Bid', 'Unmapped'];
         hits.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
         this.kgView = 'graph';
         this.renderKG();
@@ -4437,9 +4960,9 @@
       }
 
       // Staff report (internal registry) - unchanged.
-      supplierAggregate() {
+      supplierAggregate(records) {
         const map = {};
-        this.registry.filter(r => r.bidder).forEach(r => {
+        (records || this.registry).filter(r => r.bidder).forEach(r => {
           const k = r.bidder;
           if (!map[k]) map[k] = { name: k, bids: 0, awards: [], total: 0 };
           map[k].bids++;
@@ -4559,10 +5082,114 @@
         }, 260);
       }
 
+      // Sync to Neo4j (Super Admin). The server enforces the admin role (require_role) and the
+      // X-Requested-With header (postJson). Success is reported only for HTTP 200 + verification.ok.
+      syncNeo4j() {
+        if (this.roleKey !== 'admin') {
+          this.showToast('Only the Super Admin can synchronize Neo4j.', 'warn');
+          return;
+        }
+        if (this._neo4jSyncBusy) return;
+        this.openModal({
+          title: 'Sync to Neo4j',
+          subtitle: 'MariaDB to Neo4j · sample records only',
+          body: '<p class="text-gray-700 leading-relaxed">This copies the approved sample procurement records (data_source = sample) from MariaDB into the Neo4j graph database and replaces the previous Neo4j snapshot. MariaDB is only read; nothing in MariaDB is changed.</p>'
+            + '<p class="text-gray-500 leading-relaxed">It can take up to two minutes. Success is reported only when the read-back check confirms that Neo4j matches MariaDB.</p>',
+          confirmText: 'Sync now',
+          onConfirm: () => { this.runNeo4jSync(); }
+        });
+      }
+
+      setNeo4jSyncStatus(text, tone) {
+        const el = document.getElementById('neo4j-sync-status');
+        const color = { ok: 'text-emerald-800', error: 'text-red-700', warn: 'text-amber-800', info: 'text-gray-600' };
+        el.className = 'text-[11px] leading-relaxed ' + (color[tone] || color.info);
+        el.textContent = text;
+      }
+
+      async runNeo4jSync() {
+        if (this._neo4jSyncBusy || this.roleKey !== 'admin') return;
+        this._neo4jSyncBusy = true;
+        const btn = document.getElementById('neo4j-sync-btn');
+        const label = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Synchronizing...';
+        this.setNeo4jSyncStatus('Synchronizing MariaDB to Neo4j... Keep this page open.', 'info');
+        let res = null;
+        try {
+          res = await this.postJson('/api/graph/neo4j/sync', {});
+        } catch (error) {
+          console.error('Neo4j sync request failed:', error);
+        } finally {
+          this._neo4jSyncBusy = false;
+          btn.disabled = false;
+          btn.classList.remove('opacity-60', 'cursor-not-allowed');
+          btn.innerHTML = label;
+        }
+        if (!res) {
+          this.setNeo4jSyncStatus('The server could not be reached, so the result is unknown. Check the Flask terminal, then run the sync again.', 'error');
+          this.showToast('Neo4j sync: the server could not be reached.', 'error');
+          return;
+        }
+        const d = res.data || {};
+        const msg = typeof d.message === 'string' && d.message ? d.message : '';
+        if (res.status === 401) {
+          this.handleSessionExpired(msg || 'Your session expired. Please sign in again.');
+          return;
+        }
+        if (res.status === 403) {
+          const text = d.code === 'password_change_required'
+            ? 'Set a new password to activate your account first. Nothing was synchronized.'
+            : 'You do not have permission to synchronize Neo4j (Super Admin only). Nothing was synchronized.';
+          this.setNeo4jSyncStatus(text, 'error');
+          this.showToast(text, 'error');
+          return;
+        }
+        if (res.status === 200 && d.status === 'success' && d.verification && d.verification.ok === true) {
+          const t = d.totals || {};
+          const n = v => (typeof v === 'number' ? v : 0);
+          const text = 'Synchronized and verified ' + fmtSyncTime(d.finishedAt) + ': '
+            + (n(t.nodesCreated) + n(t.nodesMatched)) + ' nodes (' + n(t.nodesCreated) + ' created, ' + n(t.nodesMatched) + ' matched), '
+            + (n(t.relationshipsCreated) + n(t.relationshipsMatched)) + ' relationships (' + n(t.relationshipsCreated) + ' created, ' + n(t.relationshipsMatched) + ' matched); '
+            + n(t.nodesRemoved) + ' nodes and ' + n(t.relationshipsRemoved) + ' relationships removed. Read-back matches MariaDB.';
+          this.setNeo4jSyncStatus(text, 'ok');
+          this.logActivity('Super Admin', 'Neo4j synchronized', text, 'ok');
+          this.showToast('Neo4j synchronized and verified.', 'ok');
+          if (this._neo4jState !== 'idle') this.loadNeo4jGraph();   // refresh the Neo4j graph only after verified success
+          return;
+        }
+        let text;
+        if (res.status === 409) {
+          const extra = Array.isArray(d.foreignKeyProblems) && d.foreignKeyProblems.length
+            ? ' Foreign-key constraints: ' + d.foreignKeyProblems.map(p => p.constraint + ' (' + p.problem + ')').join('; ') + '.'
+            : d.conflicts && typeof d.conflicts === 'object' && Object.keys(d.conflicts).length
+              ? ' Conflicting Neo4j data: ' + Object.keys(d.conflicts).map(k => k + ': ' + d.conflicts[k]).join('; ') + '.'
+              : '';
+          text = 'Synchronization refused: ' + (msg || 'a safety rule stopped it.') + extra;
+        } else if (res.status === 503) {
+          text = 'Neo4j is unavailable: ' + (msg || 'the graph database could not be reached.') + ' Nothing was synchronized.';
+        } else if (res.status === 500 && d.verification && d.verification.ok === false) {
+          const k = Array.isArray(d.verification.problems) ? d.verification.problems.length : 0;
+          text = 'The sync was written to Neo4j, but the read-back did NOT match MariaDB (' + k + ' problem' + (k === 1 ? '' : 's')
+            + '). Do not rely on the Neo4j graph until a sync verifies.';
+        } else if (res.status === 500) {
+          text = 'Synchronization failed' + (d.stage ? ' (stage: ' + d.stage + ')' : '') + ': ' + (msg || 'see the Flask terminal for the error type.');
+        } else {
+          text = 'Unexpected response (HTTP ' + res.status + '). The synchronization was not confirmed.';
+        }
+        this.setNeo4jSyncStatus(text, 'error');
+        this.logActivity('Super Admin', 'Neo4j sync not completed', text, 'warn');
+        this.showToast('Neo4j sync did not complete. See Knowledge Graph Maintenance for details.', 'error');
+      }
+
       /* ===== Exports ===== */
       downloadCSV(name, rows) {
         const csv = rows.map(r => r.map(v => {
-          const s = String(v == null ? '' : v);
+          const raw = String(v == null ? '' : v);
+          // Formula injection guard: a text cell starting with = + - @ tab or CR would run as a
+          // formula in Excel, so it is prefixed with an apostrophe. Plain numbers are left as they are.
+          const s = /^[=+\-@\t\r]/.test(raw) && !/^[+-]?\d+(\.\d+)?$/.test(raw) ? "'" + raw : raw;
           return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
         }).join(',')).join('\r\n');
         const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -4573,32 +5200,97 @@
         a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
       }
-      // Staff PMR (Reports page): the full internal registry - unchanged.
-      exportPMR(scope) {
+      // Export integrity: CSV files are built from the SAVED records only. The demo actions change
+      // the in-memory registry (rows marked demo), so each export reads a fresh copy from the server.
+      // Returns the records, or null (a toast was shown and nothing is exported).
+      async fetchSavedRecords(url, staff) {
+        let response, result;
+        try {
+          response = await fetch(url, { credentials: 'same-origin' });
+          result = await response.json().catch(() => ({}));
+        } catch (error) {
+          console.error('Export: could not load the saved records:', error);
+          this.showToast('Could not load the saved records from the server. Nothing was exported.', 'error');
+          return null;
+        }
+        if (staff && (response.status === 401 || (response.status === 403 && result.code === 'password_change_required'))) {
+          this.handleSessionExpired(result.message || 'Your session expired. Please sign in again.');
+          return null;
+        }
+        if (!response.ok || result.status !== 'success' || !Array.isArray(result.procurements)) {
+          this.showToast((result.message || 'Could not load the saved records.') + ' Nothing was exported.', 'error');
+          return null;
+        }
+        return result.procurements;
+      }
+
+      // "; 2 unsaved demo changes not included" (empty when there are none)
+      demoExportNote() {
+        const n = this.registry.filter(r => r.demo).length;
+        return n ? '; ' + n + ' unsaved demo change' + (n === 1 ? '' : 's') + ' not included' : '';
+      }
+
+      // Staff PMR (Reports page): the full internal registry, as saved in the database.
+      async exportPMR(scope) {
         if (scope === 'public') return this.exportPublicPMR();
+        if (this._exportBusy) return;
+        this._exportBusy = true;
+        try {
+          const records = await this.fetchSavedRecords('/api/procurements', true);
+          if (!records) return;
+          this.buildPMR(records);
+        } finally {
+          this._exportBusy = false;
+        }
+      }
+
+      buildPMR(records) {
         const rows = [['Procurement ID', 'Project Title', 'End-User Unit', 'Mode of Procurement', 'Category', 'ABC (PHP)', 'PhilGEPS Reference', 'Bid Submission Deadline', 'No. of Bids', 'Bidder / Awardee', 'Bid / Contract Amount (PHP)', 'BAC Resolution', 'Notice of Award', 'Award Date', 'Status']];
-        this.registry.forEach(r => rows.push([r.id, r.title, r.unit, r.mode, r.category, r.abc.toFixed(2), r.philgeps || '', r.deadline || '', r.bids || '', r.bidder || '', r.bidAmount ? r.bidAmount.toFixed(2) : '', r.resolution || '', r.noa || '', r.awardDate || '', r.status]));
+        records.forEach(r => rows.push([r.id, r.title, r.unit, r.mode, r.category, r.abc.toFixed(2), r.philgeps || '', r.deadline || '', r.bids || '', r.bidder || '', r.bidAmount ? r.bidAmount.toFixed(2) : '', r.resolution || '', r.noa || '', r.awardDate || '', r.status]));
         this.downloadCSV('PMR_SantaRosa_FY2026.csv', rows);
-        this.showToast('PMR exported (' + this.registry.length + ' projects).', 'ok');
+        this.showToast('PMR exported (' + records.length + ' projects' + this.demoExportNote() + ').', 'ok');
       }
 
       // Public PMR extract (Public Documents tab): published records, approved public fields only.
-      // No bid counts, BAC resolutions or evaluation-stage records.
-      exportPublicPMR() {
-        const source = this.publicView();
+      // No bid counts, BAC resolutions or evaluation-stage records. Saved public records only
+      // (GET /api/public/procurements), never the demo copy shown on the portal.
+      async exportPublicPMR() {
+        if (this._exportBusy) return;
+        this._exportBusy = true;
+        try {
+          const source = await this.fetchSavedRecords('/api/public/procurements', false);
+          if (!source) return;
+          this.buildPublicPMR(source);
+        } finally {
+          this._exportBusy = false;
+        }
+      }
+
+      buildPublicPMR(source) {
         const rows = [['Reference No.', 'Project Title', 'End-User Unit', 'Mode of Procurement', 'Category', 'ABC (PHP)', 'Notice Type', 'PhilGEPS Reference', 'Bid Submission Deadline', 'Status', 'Awardee', 'Contract Amount (PHP)', 'Notice of Award', 'Award Date']];
         source.forEach(r => rows.push([r.id, r.title, r.unit, r.mode, r.category, Number(r.abc || 0).toFixed(2), r.noticeType || '', r.philgeps || '', r.deadline || '', r.status,
           r.awardee || '', r.contractAmount ? Number(r.contractAmount).toFixed(2) : '', r.noa || '', r.awardDate || '']));
         this.downloadCSV('PMR_SantaRosa_FY2026_Public.csv', rows);
-        this.showToast('Public PMR extract exported (' + source.length + ' projects).', 'ok');
+        this.showToast('Public PMR extract exported (' + source.length + ' projects' + this.demoExportNote() + ').', 'ok');
       }
-      exportSupplierMatrix() {
-        const rows = [['Supplier', 'Procurements Participated', 'Contracts Awarded', 'Total Awarded (PHP)', 'Cross-Reference Note (rules not implemented yet)']];
-        this.supplierAggregate().forEach(s => {
-          rows.push([s.name, s.bids, s.awards.length, s.total.toFixed(2), '']);
-        });
-        this.downloadCSV('Supplier_Contract_Frequency.csv', rows);
-        this.showToast('Supplier contract frequency matrix exported.', 'ok');
+
+      // Supplier matrix from the saved registry (same counting rule as before).
+      async exportSupplierMatrix() {
+        if (this._exportBusy) return;
+        this._exportBusy = true;
+        try {
+          const records = await this.fetchSavedRecords('/api/procurements', true);
+          if (!records) return;
+          const rows = [['Supplier', 'Procurements Participated', 'Contracts Awarded', 'Total Awarded (PHP)', 'Cross-Reference Note (rules not implemented yet)']];
+          this.supplierAggregate(records).forEach(s => {
+            rows.push([s.name, s.bids, s.awards.length, s.total.toFixed(2), '']);
+          });
+          this.downloadCSV('Supplier_Contract_Frequency.csv', rows);
+          const note = this.demoExportNote();
+          this.showToast('Supplier contract frequency matrix exported' + (note ? ' (' + note.slice(2) + ')' : '') + '.', 'ok');
+        } finally {
+          this._exportBusy = false;
+        }
       }
       exportGraph() {
         const rows = [['REFERENCE DATA: public PhilGEPS award notice abstracts from other government agencies. These are NOT Santa Rosa City procurement records.'], [],

@@ -1,7 +1,12 @@
 """
 backend/graph_api.py - Sample City Knowledge Graph data (READ-ONLY).
 
-    GET /api/graph/sample     signed-in BAC staff (Secretariat, BAC Member, Super Admin)
+    GET /api/graph/sample        signed-in BAC staff (Secretariat, BAC Member, Super Admin)
+    GET /api/graph/neo4j/health  Super Admin only: Neo4j connectivity check (see neo4j_db.py).
+                                 Reads no procurement data; the graph itself still comes from MariaDB.
+    POST /api/graph/neo4j/sync   Super Admin only: copy the approved sample records from MariaDB into
+                                 Neo4j (see graph_sync.py). MariaDB is only read. No request body is
+                                 used, so the browser cannot change what is synchronized.
 
 Returns the records the Sample City Graph is built from: procurements, procuring entities,
 suppliers and their representatives, bids, BAC resolutions and award notices.
@@ -22,8 +27,9 @@ SOURCE_LABELS after approval. Nothing else in this module or the page assumes "s
 from datetime import date, datetime
 from decimal import Decimal
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, g, jsonify
 
+import neo4j_db
 from auth import require_role
 from db import get_db_connection
 
@@ -216,3 +222,58 @@ def get_sample_graph():
         "source": source,
         **data,
     })
+
+@graph_bp.route("/api/graph/neo4j", methods=["GET"])
+@require_role(*STAFF_ROLES)
+def get_neo4j_graph():
+    """Read the synchronized Neo4j graph (staff only)."""
+    import graph_store
+
+    status_code, body = graph_store.read_graph()
+    response = jsonify(body)
+    response.status_code = status_code
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@graph_bp.route("/api/graph/neo4j/health", methods=["GET"])
+@require_role("admin")
+def get_neo4j_health():
+    """Neo4j connectivity check (Super Admin only). 200 when connected, otherwise 503.
+    The response never contains the Neo4j URI, user name or password."""
+    status_code, body = neo4j_db.check_health()
+    response = jsonify(body)
+    response.status_code = status_code
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+@graph_bp.route("/api/graph/neo4j/verify", methods=["GET"])
+@require_role("admin")
+def get_neo4j_verify():
+    """Read-only comparison of MariaDB and Neo4j (Super Admin only)."""
+    import graph_sync
+
+    status_code, body = graph_sync.run_verify()
+    response = jsonify(body)
+    response.status_code = status_code
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@graph_bp.route("/api/graph/neo4j/sync", methods=["POST"])
+@require_role("admin")
+def post_neo4j_sync():
+    """Synchronize MariaDB -> Neo4j (Super Admin only). 200 with a summary when Neo4j matches MariaDB;
+    409 when a safety rule refused; 503 when Neo4j is unavailable; 500 otherwise. Never exposes
+    credentials or raw database errors. Requires the X-Requested-With: fetch header (auth.py)."""
+    import graph_sync                    # imported here: graph_sync imports GRAPH_SOURCES from this module
+    status_code, body = graph_sync.run_sync()
+    totals = body.get("totals") or {}
+    current_app.logger.info(
+        "Neo4j graph sync by user_id %s: HTTP %s, stage %s, nodes created %s, relationships created %s",
+        g.user.get("user_id"), status_code, body.get("stage", "done"),
+        totals.get("nodesCreated", "-"), totals.get("relationshipsCreated", "-"))
+    response = jsonify(body)
+    response.status_code = status_code
+    response.headers["Cache-Control"] = "no-store"
+    return response
