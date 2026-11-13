@@ -7,7 +7,7 @@ Run it on YOUR computer, against your real MariaDB:
     python backend\\check_phase3_prereqs.py
 
 It connects through your existing backend/db.py (backend/config.py), so it
-uses your real host, port 3307 and database. It never prints a password.
+uses your real host, port and database. It never prints a password.
 
 It only runs SELECT / SHOW statements. It does NOT insert, update, delete,
 create or drop anything, and it changes no files.
@@ -24,8 +24,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from db import get_db_connection                    # your existing helper
 
-EXPECTED_DATABASE = "procurement_db_test"
-EXPECTED_PORT = 3307
+EXPECTED_DATABASE = "procurement_db_frontend_test"
+# The port must match DB_CONFIG in backend/config.py (laptop: 3306).
+try:
+    from config import DB_CONFIG as _DB_CONFIG
+    EXPECTED_PORT = int(_DB_CONFIG.get("port", 3306))
+except Exception:  # config.py missing or unreadable; the connection step reports it
+    EXPECTED_PORT = 3306
 
 # Columns Phase 3 will read or write (schema_proposal_v4.sql).
 REQUIRED_COLUMNS = {

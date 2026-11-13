@@ -2,11 +2,11 @@
 backend/seed.py - Load FICTIONAL sample data into the TEST database.
 
 Knowledge Graph-Based Procurement Monitoring and Supplier Visualization System
-Schema: schema_proposal_v4.sql (MariaDB 10.4)
+Schema: schema_proposal_v4.sql (developed on MariaDB 13.0.2)
 
 What it does
 ------------
-* Works ONLY on the database named in TARGET_DATABASE (procurement_db_test).
+* Works ONLY on the database named in TARGET_DATABASE (procurement_db_frontend_test).
   It refuses to run against procurement_db, brgy_attendance or any other name.
 * Inserts lookup values, 3 demo staff accounts and 7 fictional sample
   procurements (every frontend status), with their bid notices, bids,
@@ -44,7 +44,7 @@ from werkzeug.security import generate_password_hash  # installed with Flask
 # ---------------------------------------------------------------------------
 # Safety settings
 # ---------------------------------------------------------------------------
-TARGET_DATABASE = "procurement_db_test"
+TARGET_DATABASE = "procurement_db_frontend_test"
 FORBIDDEN_DATABASES = {"procurement_db", "brgy_attendance"}
 
 # Names your backend/db.py helper might use. The first one found is used.

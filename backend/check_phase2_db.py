@@ -7,14 +7,14 @@ Run it on YOUR computer, against your real MariaDB, before installing Phase 2:
     python backend\\check_phase2_db.py
 
 It connects through your existing backend/db.py (which reads backend/config.py),
-so it uses your real host, port (3307) and database. It never prints the
+so it uses your real host, port and database. It never prints the
 password or any other credential.
 
 It only runs SELECT / SHOW statements. It does NOT insert, update, delete,
 create or drop anything, and it changes no files.
 
 Checks:
-  1. connected database is procurement_db_test; server port is 3307
+  1. connected database is procurement_db_frontend_test; server port matches DB_CONFIG
   2. users and activity_log columns match what backend/auth.py writes/reads
   3. the activity_log append-only triggers exist; no City procurement has
      more than one award notice
@@ -33,8 +33,13 @@ from db import get_db_connection                    # your existing helper
 from registry import fetch_registry
 from public_registry import fetch_public_registry, NOTICE_FIELDS, AWARD_FIELDS
 
-EXPECTED_DATABASE = "procurement_db_test"
-EXPECTED_PORT = 3307
+EXPECTED_DATABASE = "procurement_db_frontend_test"
+# The port must match DB_CONFIG in backend/config.py (laptop: 3306).
+try:
+    from config import DB_CONFIG as _DB_CONFIG
+    EXPECTED_PORT = int(_DB_CONFIG.get("port", 3306))
+except Exception:  # config.py missing or unreadable; the connection step reports it
+    EXPECTED_PORT = 3306
 
 # Columns backend/auth.py uses, with the types in schema_proposal_v4.sql.
 EXPECTED_COLUMNS = {
