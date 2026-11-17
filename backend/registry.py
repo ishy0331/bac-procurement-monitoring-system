@@ -45,6 +45,7 @@ SELECT
     r.recommendation,
     a.notice_no           AS award_notice_no,
     a.award_date,
+    ct.contract_no,
     sb.bid_amount         AS shown_bid_amount,
     s.name                AS shown_supplier_name
 FROM procurements p
@@ -62,6 +63,8 @@ LEFT JOIN award_notices a
        ON a.award_id = (SELECT MAX(a2.award_id)
                           FROM award_notices a2
                          WHERE a2.procurement_id = p.procurement_id)
+LEFT JOIN contracts ct
+       ON ct.contract_id = a.contract_id
 LEFT JOIN bids sb
        ON sb.bid_id = COALESCE(
               a.bid_id,
@@ -127,6 +130,7 @@ def row_to_frontend(row):
         "noa": row["award_notice_no"],
         "awardDate": _iso_date(row["award_date"]),
         "noticeType": row["notice_type"],
+        "contractNo": row.get("contract_no"),
         "dataSource": row["data_source"],
     }
 

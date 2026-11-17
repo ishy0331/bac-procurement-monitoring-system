@@ -50,11 +50,11 @@ from graph_sync import GRAPH_SOURCES, INFO_KEY, INFO_LABEL, NODE_KEYS, OWNER, OW
 
 _log = logging.getLogger(__name__)
 
-DATA_LABEL = "Synced City Sample Data"
-NOTICE = ("Snapshot of the system's fictional sample procurement records (data_source = sample), copied from "
-          "MariaDB into Neo4j by the last completed synchronization. It is not live data: changes made in "
-          "MariaDB after that sync are not shown until the next sync. These are not Santa Rosa City procurement "
-          "records and not PhilGEPS reference data.")
+DATA_LABEL = "Synced City Data"
+NOTICE = ("Snapshot of the system's City procurement records (sample records and records encoded by the BAC "
+          "Secretariat), copied from MariaDB into Neo4j. It is not live data: the graph is updated automatically "
+          "after each save, so a change appears here once that sync has finished. Sample records are fictional; "
+          "none of these are PhilGEPS reference data.")
 MARKER_PROPS = {"syncOwner", "syncRunId"}            # ownership bookkeeping written by graph_sync.py; not returned
 
 READ_INFO = (f"MATCH (i:`{INFO_LABEL}` {{syncKey: $infoKey}}) WHERE i.syncOwner = $owner "

@@ -9,13 +9,20 @@ from registry import fetch_registry
 from public_registry import fetch_public_registry   # published records only
 from auth import init_auth, require_role           # Phase 2: authentication
 from procurement_api import procurement_bp         # Phase 3: procurement records
-from graph_api import graph_bp                     # Sample City Graph (read-only, sample data only)
+from graph_api import graph_bp                     # City Knowledge Graph (sample + encoded records)
+from workflow_api import workflow_bp               # notice -> bids -> resolution -> award -> contract
+from dashboard_api import dashboard_bp             # dashboard figures computed from the database
+from admin_api import admin_bp                     # Super Admin: accounts and system settings
+from documents_api import documents_bp, MAX_UPLOAD_MB   # uploaded procurement documents
+from reports_api import reports_bp                 # PMR as Excel (.xlsx)
+import graph_autosync                              # keeps Neo4j in step with MariaDB after every save
 
 STAFF_ROLES = ("secretariat", "member", "admin")
 
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
 FRONTEND_FILE = "proctest19.html"
+VENDOR_DIR = PROJECT_DIR / "vendor"
 
 # All database work must stay on the isolated frontend test database for now.
 EXPECTED_DATABASE = "procurement_db_frontend_test"
@@ -40,16 +47,30 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",         # not sent with cross-site requests
     # True only when the site runs on HTTPS (cannot work on http://127.0.0.1).
     SESSION_COOKIE_SECURE=bool(getattr(config, "SESSION_COOKIE_SECURE", False)),
+    MAX_CONTENT_LENGTH=(MAX_UPLOAD_MB + 1) * 1024 * 1024,   # largest accepted request (document uploads)
 )
 init_auth(app)   # /api/login, /api/change-password, /api/logout, /api/me + session checks
 app.register_blueprint(procurement_bp)   # Phase 3: /api/procurements/<reference> (read-only in Step 1)
 app.register_blueprint(graph_bp)         # GET /api/graph/sample (staff only, SELECT only)
+app.register_blueprint(workflow_bp)      # POST /api/procurements/<ref>/notice | bids | resolution | award | contract
+app.register_blueprint(dashboard_bp)     # GET /api/dashboard
+app.register_blueprint(admin_bp)         # /api/admin/users, /api/admin/settings
+app.register_blueprint(documents_bp)     # /api/documents..., /api/public/documents...
+app.register_blueprint(reports_bp)       # /api/reports/pmr.xlsx, /api/public/reports/pmr.xlsx
+graph_autosync.start()                   # background MariaDB -> Neo4j sync + one catch-up sync at start-up
 
 
 # Serve the existing staff frontend
 @app.route("/")
 def index():
     return send_from_directory(PROJECT_DIR, FRONTEND_FILE)
+
+
+# Local copies of Tailwind and Font Awesome (vendor/), so the pages work
+# without an internet connection. Download them with deploy/get_vendor_assets.ps1.
+@app.route("/vendor/<path:filename>")
+def vendor_file(filename):
+    return send_from_directory(VENDOR_DIR, filename)
 
 
 
@@ -239,5 +260,7 @@ def verify_database():
 
 
 if __name__ == "__main__":
+    # Development server only. For deployment use:  python backend\serve.py
     verify_database()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000,
+            debug=bool(getattr(config, "DEBUG", False)))

@@ -243,7 +243,7 @@ an = next(n for n in body["nodes"] if n["id"] == "AwardNotice:701")
 check("Neo4j Date values returned as ISO strings", an["properties"]["awardDate"] == "2026-09-25")
 check("sync metadata: last sync time, run id, verification, totals", body["sync"] == {"lastRunId": "run-1", "lastSyncedAt": SYNC_TIME,
       "verificationOk": True, "totals": {"nodesCreated": 0, "relationshipsCreated": 0}})
-check("labelled as synced sample snapshot, not live", body["dataLabel"] == "Synced City Sample Data" and "not live" in body["notice"]
+check("labelled as synced sample snapshot, not live", body["dataLabel"] == "Synced City Data" and "not live" in body["notice"]
       and body["dataSources"] == ["sample"] and body["database"] == "neo4j")
 check("schema lists the 11 labels and 16 types", body["schema"] == {"nodeLabels": list(GS.NODE_KEYS), "relationshipTypes": list(GS.REL_TYPES)})
 check("no unknown labels or types in a normal graph", body["counts"]["unmappedNodes"] == 0 and body["counts"]["unknownRelationshipTypes"] == [])

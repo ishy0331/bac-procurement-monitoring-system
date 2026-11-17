@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 backend/config.py
 .env
+.venv/
+deploy/local_env.ps1
+uploads/
+# local backups made before each change (not part of the code)
+backup-*/
+proctest19.before-*.html

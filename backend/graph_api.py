@@ -4,17 +4,19 @@ backend/graph_api.py - Sample City Knowledge Graph data (READ-ONLY).
     GET /api/graph/sample        signed-in BAC staff (Secretariat, BAC Member, Super Admin)
     GET /api/graph/neo4j/health  Super Admin only: Neo4j connectivity check (see neo4j_db.py).
                                  Reads no procurement data; the graph itself still comes from MariaDB.
-    POST /api/graph/neo4j/sync   Super Admin only: copy the approved sample records from MariaDB into
+    GET  /api/graph/neo4j/autosync  Super Admin only: state of the automatic sync (graph_autosync.py).
+    POST /api/graph/neo4j/sync   Super Admin only: copy the approved records from MariaDB into
                                  Neo4j (see graph_sync.py). MariaDB is only read. No request body is
                                  used, so the browser cannot change what is synchronized.
 
 Returns the records the Sample City Graph is built from: procurements, procuring entities,
 suppliers and their representatives, bids, BAC resolutions and award notices.
 
-Scope (approved):
-  * Only records with data_source = 'sample' (fictional demonstration data). The source list
-    is fixed here on the server (GRAPH_SOURCES); the browser cannot ask for anything else.
-    'encoded' test drafts and 'philgeps' reference rows are never returned.
+Scope:
+  * Records with data_source = 'sample' (fictional demonstration data) and 'encoded' (records
+    the BAC Secretariat saves in the Procurement Encoding tab). The source list is fixed here on
+    the server (GRAPH_SOURCES); the browser cannot ask for anything else. 'philgeps' reference
+    rows are never returned.
   * Archived (soft-deleted) procurements are excluded.
   * SELECT statements only. Nothing is written, no schema object is created or changed.
   * Not public: bids and resolutions are internal BAC information.
@@ -37,11 +39,13 @@ graph_bp = Blueprint("graph", __name__)
 
 STAFF_ROLES = ("secretariat", "member", "admin")
 
-GRAPH_SOURCES = ("sample",)                          # approved: sample records only
-SOURCE_LABELS = {"sample": "Sample Data"}            # shown on every sample node, statistic and export
+GRAPH_SOURCES = ("sample", "encoded")               # sample records + records encoded in the system
+SOURCE_LABELS = {"sample": "Sample Data", "encoded": "Encoded Records"}   # shown on nodes, statistics, exports
 SOURCE_NOTICES = {
-    "sample": ("Fictional sample procurement records for demonstration only. They are not "
+    "sample": ("Sample records are fictional and for demonstration only; they are not "
                "Santa Rosa City procurement records and not PhilGEPS reference data."),
+    "encoded": ("Encoded records are saved by the BAC Secretariat in the Procurement Encoding tab "
+                "and are added to the graph automatically."),
 }
 _PERMITTED = {"sample", "encoded"}                   # 'philgeps' reference rows are never part of the City graph
 
@@ -275,5 +279,17 @@ def post_neo4j_sync():
         totals.get("nodesCreated", "-"), totals.get("relationshipsCreated", "-"))
     response = jsonify(body)
     response.status_code = status_code
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@graph_bp.route("/api/graph/neo4j/autosync", methods=["GET"])
+@require_role("admin")
+def get_neo4j_autosync_status():
+    """State of the automatic MariaDB -> Neo4j sync (Super Admin only): whether every saved change is
+    already in the knowledge graph, and the last result. No credentials or raw errors."""
+    import graph_autosync
+
+    response = jsonify({"status": "success", "autosync": graph_autosync.status()})
     response.headers["Cache-Control"] = "no-store"
     return response

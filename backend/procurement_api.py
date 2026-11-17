@@ -43,6 +43,7 @@ from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, current_app, g, jsonify, request
 
+import graph_autosync
 from auth import ROLE_LABELS, require_role
 from db import get_db_connection
 
@@ -58,6 +59,20 @@ AUDIT_TONES = ("info", "ok", "warn")          # activity_log.tone ENUM
 
 RETRYABLE_ERRNOS = {1020, 1205, 1213}         # snapshot conflict, lock wait timeout, deadlock
 MAX_ATTEMPTS = 3
+
+GRAPH_WAIT_SECONDS = 8                        # how long a save waits to report the knowledge-graph update
+
+
+def graph_after_write(reason):
+    """Called only AFTER a write was committed. Asks for a MariaDB -> Neo4j sync and waits briefly so the
+    page can say whether the change is already in the knowledge graph. A failed or slow sync never
+    undoes the save: the background worker keeps retrying (see graph_autosync.py)."""
+    try:
+        return graph_autosync.wait_for(graph_autosync.request_sync(reason), GRAPH_WAIT_SECONDS)
+    except Exception:
+        current_app.logger.exception("Could not request the knowledge-graph sync")
+        return {"synced": False, "pending": True, "enabled": True,
+                "message": "Saved in the database. The knowledge graph will be updated on the next sync."}
 
 
 # ---------------------------------------------------------------------------
@@ -564,11 +579,13 @@ def create_procurement():
     if result["duplicates"]:
         warnings.append("Possible duplicate: a procurement with the same title already exists ("
                         + ", ".join(result["duplicates"]) + ").")
+    graph = graph_after_write(f"created {result['reference_no']}")
     return jsonify({
         "status": "success",
         "message": f"{result['reference_no']} saved as {PRE_PROCUREMENT}.",
         "procurement": registry_record_for_new(cleaned, result["reference_no"]),
         "warnings": warnings,
+        "graph": graph,
     }), 201
 
 
@@ -699,6 +716,8 @@ def update_procurement(reference):
     if result["duplicates"]:
         warnings.append("Possible duplicate: a procurement with the same title already exists ("
                         + ", ".join(result["duplicates"]) + ").")
+    graph = (graph_after_write(f"updated {row['reference_no']}") if result["changed"]
+             else {"synced": True, "pending": False, "enabled": True, "message": "No changes."})
     current = {"title": row["title"], "unit": row["end_user_unit"], "mode": row["mode_name"],
                "category": row["procurement_class"], "abc": Decimal(str(row["abc"])),
                "timeline": row["target_timeline"]}
@@ -711,6 +730,7 @@ def update_procurement(reference):
         "version": record_version(row),
         "updatedAt": _iso(row["updated_at"]),
         "warnings": warnings,
+        "graph": graph,
     })
 
 
@@ -809,7 +829,8 @@ def archive_procurement(reference):
         if getattr(exc, "errno", None) in RETRYABLE_ERRNOS:
             return json_error("The system is busy. Please try again. Nothing was changed.", 503)
         return json_error("Could not archive the record. Nothing was changed.", 500)
-    return jsonify({"status": "success", "id": result["reference_no"],
+    graph = graph_after_write(f"archived {result['reference_no']}")
+    return jsonify({"status": "success", "id": result["reference_no"], "graph": graph,
                     "message": f"{result['reference_no']} archived. It can be restored from Archived Records."})
 
 
@@ -927,5 +948,6 @@ def restore_procurement(reference):
         if getattr(exc, "errno", None) in RETRYABLE_ERRNOS:
             return json_error("The system is busy. Please try again. Nothing was changed.", 503)
         return json_error("Could not restore the record. Nothing was changed.", 500)
-    return jsonify({"status": "success", "id": result["reference_no"],
+    graph = graph_after_write(f"restored {result['reference_no']}")
+    return jsonify({"status": "success", "id": result["reference_no"], "graph": graph,
                     "message": f"{result['reference_no']} restored. It is visible in the registry again."})

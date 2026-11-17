@@ -8,6 +8,15 @@ Provides:
   GET  /api/me               who is signed in (lets a page refresh stay signed in)
   require_role(...)          decorator for protected routes (401 / 403)
 
+Forgot password (no e-mail server is needed; works on the office network):
+  POST /api/forgot-password                       anyone: ask the Super Admin for a password reset
+  GET  /api/admin/password-resets                 Super Admin: open reset requests + all accounts
+  POST /api/admin/users/<id>/reset-password       Super Admin: issue a one-time temporary password
+  POST /api/admin/password-resets/<id>/dismiss    Super Admin: close a request without resetting
+  The temporary password is shown to the Super Admin ONCE and stored only as a scrypt hash. The account
+  becomes 'Pending activation', so the user must set a new password right after signing in (the same
+  restricted-session flow as a new account). Every step is written to activity_log.
+
 Security rules
   * Passwords: Werkzeug scrypt hashes only; plain text is never stored or logged.
   * Login: one generic error for every failure; the role chosen on the login
@@ -66,6 +75,21 @@ _DUMMY_HASH = generate_password_hash(secrets.token_hex(16), method="scrypt")
 
 # Clock function (replaceable in automated tests).
 _clock = time.time
+
+# Forgot password
+RESET_REQUEST_ACTION = "Password reset requested"
+RESET_ISSUED_ACTION = "Temporary password issued"
+RESET_DISMISSED_ACTION = "Password reset request dismissed"
+RESET_REQUEST_COOLDOWN_MINUTES = 15     # one logged request per account per 15 minutes (no log flooding)
+RESET_REQUEST_OPEN_DAYS = 14            # older unanswered requests are no longer listed
+TEMP_PASSWORD_LENGTH = 14
+TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"   # no 0/O, 1/l/I
+FORGOT_PASSWORD_REPLY = ("If that username belongs to an active account, your request was sent to the "
+                         "Super Admin. Contact them to receive a temporary password; you will set your "
+                         "own new password right after signing in with it.")
+# Actions that close an open reset request for that account.
+_RESET_CLOSING_ACTIONS = (RESET_ISSUED_ACTION, RESET_DISMISSED_ACTION,
+                          "Password changed", "Password changed - account activated")
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -201,9 +225,9 @@ def _load_session_user():
     now = _clock()
     pending = bool(auth.get("pending"))
 
-    if pending and request.endpoint == "auth.login":
-        # A new sign-in attempt ends the restricted session first, so login()
-        # runs exactly as it does for an anonymous visitor.
+    if pending and request.endpoint in ("auth.login", "auth.forgot_password"):
+        # A new sign-in attempt (or a forgot-password request) ends the restricted
+        # session first, so it runs exactly as it does for an anonymous visitor.
         session.clear()
         return None
 
@@ -454,3 +478,212 @@ def me():
         return jsonify({"authenticated": False, "password_change_required": True,
                         "user": g.pending_user})
     return jsonify({"authenticated": False, "expired": bool(g.get("session_expired"))})
+
+
+# ---------------------------------------------------------------------------
+# Forgot password
+# ---------------------------------------------------------------------------
+def make_temporary_password(length=TEMP_PASSWORD_LENGTH):
+    """Random temporary password that meets password_problems() (letter + digit, >= 10 chars)."""
+    while True:
+        pw = "".join(secrets.choice(TEMP_PASSWORD_ALPHABET) for _ in range(length))
+        if re.search(r"[A-Za-z]", pw) and re.search(r"\d", pw):
+            return pw
+
+
+def _log_anonymous(cur, row, action, detail, tone="info"):
+    """activity_log entry for a request made by someone who is not signed in."""
+    cur.execute("INSERT INTO activity_log (user_id, actor_label, action, detail, tone, "
+                "entity_type, entity_id, ip_address) "
+                "VALUES (%s, %s, %s, %s, %s, 'user', %s, %s)",
+                (row["user_id"], f"Sign-in page ({row['username']})"[:100], action, detail, tone,
+                 row["user_id"], (request.remote_addr or "")[:45] or None))
+
+
+def _log_admin(cur, target, action, detail, tone="info"):
+    """activity_log entry for a Super Admin action on another account."""
+    admin = g.user
+    actor = f"{ROLE_LABELS.get(admin['role'], admin['role'])} ({admin['username']})"
+    cur.execute("INSERT INTO activity_log (user_id, actor_label, action, detail, tone, "
+                "entity_type, entity_id, ip_address) "
+                "VALUES (%s, %s, %s, %s, %s, 'user', %s, %s)",
+                (admin["user_id"], actor[:100], action, detail, tone,
+                 target["user_id"], (request.remote_addr or "")[:45] or None))
+
+
+@auth_bp.route("/api/forgot-password", methods=["POST"])
+def forgot_password():
+    """Record a reset request for the Super Admin. The reply is always the same, whether or not the
+    username exists, so the form cannot be used to discover usernames."""
+    data = _json_body()
+    if data is None:
+        return _json_error("Request body must be JSON.", 400)
+    username = data.get("username")
+    if not isinstance(username, str) or not username.strip() or len(username) > 50:
+        return _json_error("Enter your username.", 400, errors={"username": "Enter your username."})
+    username = username.strip()
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        conn.autocommit = False
+        cur = conn.cursor(dictionary=True, buffered=True)
+        row = _lock_user_row(cur, username=username)
+        if row is None or row["status"] == "Disabled":
+            conn.rollback()
+            return jsonify({"status": "success", "message": FORGOT_PASSWORD_REPLY})
+        cur.execute("SELECT COUNT(*) AS n FROM activity_log WHERE entity_type = 'user' AND entity_id = %s "
+                    "AND action = %s AND created_at > %s",
+                    (row["user_id"], RESET_REQUEST_ACTION,
+                     datetime.now() - timedelta(minutes=RESET_REQUEST_COOLDOWN_MINUTES)))
+        if int(cur.fetchone()["n"]) == 0:
+            _log_anonymous(cur, row, RESET_REQUEST_ACTION,
+                           "Forgot-password request from the sign-in page. Waiting for the Super Admin.",
+                           "warn")
+        conn.commit()
+        return jsonify({"status": "success", "message": FORGOT_PASSWORD_REPLY})
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+        current_app.logger.exception("Forgot-password request failed with a server error")
+        return _json_error("The request could not be sent. Please try again or contact the Super Admin.", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+OPEN_RESET_REQUESTS_SQL = """
+SELECT l.log_id AS request_id, l.created_at AS requested_at, l.ip_address,
+       u.user_id, u.username, u.full_name, u.role, u.status
+FROM activity_log l
+JOIN users u ON u.user_id = l.entity_id
+WHERE l.entity_type = 'user' AND l.action = %s AND l.created_at > %s
+  AND l.log_id = (SELECT MAX(l2.log_id) FROM activity_log l2
+                   WHERE l2.entity_type = 'user' AND l2.entity_id = l.entity_id AND l2.action = %s)
+  AND NOT EXISTS (SELECT 1 FROM activity_log c
+                   WHERE c.entity_type = 'user' AND c.entity_id = l.entity_id
+                     AND c.log_id > l.log_id AND c.action IN ({closing}))
+ORDER BY l.log_id DESC
+""".format(closing=", ".join(["%s"] * len(_RESET_CLOSING_ACTIONS)))
+
+
+def _iso_dt(value):
+    return value.strftime("%Y-%m-%d %H:%M:%S") if value else None
+
+
+@auth_bp.route("/api/admin/password-resets", methods=["GET"])
+@require_role("admin")
+def list_password_resets():
+    """Open forgot-password requests and every account (so a reset can also be issued without one)."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(dictionary=True, buffered=True)
+        cur.execute(OPEN_RESET_REQUESTS_SQL,
+                    (RESET_REQUEST_ACTION, datetime.now() - timedelta(days=RESET_REQUEST_OPEN_DAYS),
+                     RESET_REQUEST_ACTION, *_RESET_CLOSING_ACTIONS))
+        requests_ = [{
+            "requestId": r["request_id"], "requestedAt": _iso_dt(r["requested_at"]),
+            "userId": r["user_id"], "username": r["username"], "fullName": r["full_name"],
+            "role": r["role"], "roleLabel": ROLE_LABELS.get(r["role"], r["role"]), "status": r["status"],
+        } for r in cur.fetchall() if r["status"] != "Disabled"]
+        cur.execute("SELECT user_id, username, full_name, role, status, locked_until, last_login_at "
+                    "FROM users ORDER BY role, username")
+        now_dt = datetime.now()
+        users = [{
+            "userId": u["user_id"], "username": u["username"], "fullName": u["full_name"],
+            "role": u["role"], "roleLabel": ROLE_LABELS.get(u["role"], u["role"]), "status": u["status"],
+            "locked": bool(u["locked_until"] and u["locked_until"] > now_dt),
+            "lastLoginAt": _iso_dt(u["last_login_at"]), "isYou": u["user_id"] == g.user["user_id"],
+        } for u in cur.fetchall()]
+        cur.close()
+    except Exception:
+        current_app.logger.exception("Could not load password reset requests")
+        return _json_error("Could not load password reset requests.", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+    response = jsonify({"status": "success", "requests": requests_, "users": users})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@auth_bp.route("/api/admin/users/<int:user_id>/reset-password", methods=["POST"])
+@require_role("admin")
+def admin_reset_password(user_id):
+    """Issue a one-time temporary password. Returned ONCE in this response; only the hash is stored.
+    The account becomes 'Pending activation': the user must choose a new password at the next sign-in.
+    Existing sessions of that user end at once (the password fingerprint changes)."""
+    if user_id == g.user["user_id"]:
+        return _json_error("Use Change Password for your own account.", 400, code="own_account")
+    conn = None
+    try:
+        conn = get_db_connection()
+        conn.autocommit = False
+        cur = conn.cursor(dictionary=True, buffered=True)
+        row = _lock_user_row(cur, user_id=user_id)
+        if row is None:
+            conn.rollback()
+            return _json_error("Account not found.", 404)
+        if row["status"] == "Disabled":
+            conn.rollback()
+            return _json_error("This account is disabled. Enable it before resetting its password.", 409,
+                               code="disabled")
+        temp_password = make_temporary_password()
+        cur.execute("UPDATE users SET password_hash = %s, status = 'Pending activation', "
+                    "failed_login_count = 0, locked_until = NULL WHERE user_id = %s",
+                    (generate_password_hash(temp_password, method="scrypt"), row["user_id"]))
+        _log_admin(cur, row, RESET_ISSUED_ACTION,
+                   f"Temporary password issued for {row['username']}; the user must set a new password "
+                   "at the next sign-in.", "warn")
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+        current_app.logger.exception("Password reset by the Super Admin failed")
+        return _json_error("Could not reset the password. Nothing was changed.", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+    response = jsonify({
+        "status": "success",
+        "message": f"Temporary password issued for {row['username']}. It is shown only once.",
+        "user": {"userId": row["user_id"], "username": row["username"], "fullName": row["full_name"],
+                 "roleLabel": ROLE_LABELS.get(row["role"], row["role"])},
+        "temporaryPassword": temp_password,
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@auth_bp.route("/api/admin/password-resets/<int:request_id>/dismiss", methods=["POST"])
+@require_role("admin")
+def dismiss_password_reset(request_id):
+    """Close a reset request without changing the password (for example, the user remembered it)."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        conn.autocommit = False
+        cur = conn.cursor(dictionary=True, buffered=True)
+        cur.execute("SELECT entity_id FROM activity_log WHERE log_id = %s AND action = %s AND entity_type = 'user'",
+                    (request_id, RESET_REQUEST_ACTION))
+        req = cur.fetchone()
+        if req is None:
+            conn.rollback()
+            return _json_error("Request not found.", 404)
+        row = _lock_user_row(cur, user_id=req["entity_id"])
+        if row is None:
+            conn.rollback()
+            return _json_error("Account not found.", 404)
+        _log_admin(cur, row, RESET_DISMISSED_ACTION,
+                   f"Password reset request for {row['username']} closed without a reset.")
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+        current_app.logger.exception("Could not dismiss the password reset request")
+        return _json_error("Could not dismiss the request.", 500)
+    finally:
+        if conn is not None:
+            conn.close()
+    return jsonify({"status": "success", "message": f"Request for {row['username']} dismissed."})

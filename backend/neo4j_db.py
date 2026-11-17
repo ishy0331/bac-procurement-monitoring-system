@@ -49,6 +49,11 @@ DRIVER_INSTALL_HINT = 'pip install "neo4j==6.4.1"'
 
 _log = logging.getLogger(__name__)
 
+# Neo4j sends harmless "relationship type does not exist" notices (for example CERTIFIED_BY when no
+# award has a certifying official yet). The graph sync checks every relationship type on purpose,
+# so these notices are expected and only fill the terminal. Real errors are still raised and logged.
+logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
+
 
 class Neo4jSettingsError(Exception):
     """Neo4j settings are missing or invalid. The message names variables only, never their values."""
